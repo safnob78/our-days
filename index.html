@@ -39,7 +39,8 @@ body{
     linear-gradient(180deg,#171a44 0%, #24235c 52%, #2c2768 100%);
 }
 
-#stars-canvas{position:fixed;inset:0;pointer-events:none;z-index:0;}
+/* Full-bleed star canvas — 100vh = iOS large viewport, covers behind the toolbar */
+#stars-canvas{position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:0;}
 
 #app{
   position:relative;z-index:1;
@@ -52,18 +53,18 @@ body{
 /* ── Header ── */
 #header{
   text-align:center;
-  padding:28px 20px 10px;
+  padding:30px 20px 10px;
   width:100%;
 }
 #date-label{
   font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);
 }
 #greeting{
-  font-size:24px;color:var(--gold);margin-top:6px;font-style:italic;
-  text-shadow:0 1px 12px rgba(240,215,154,.25);
+  font-size:38px;color:var(--gold);margin-top:8px;font-style:italic;line-height:1.1;
+  text-shadow:0 1px 16px rgba(240,215,154,.3);
 }
 #hint{
-  font-size:12px;color:var(--muted);margin-top:8px;min-height:18px;
+  font-size:12px;color:var(--muted);margin-top:10px;min-height:18px;
   transition:color .4s;
 }
 #hint.complete{color:#bfe9b6;}
@@ -82,53 +83,55 @@ body{
   transform-origin:center bottom;
   will-change:transform,opacity;
   -webkit-tap-highlight-color:transparent;
-  transition:transform .42s cubic-bezier(.16,1,.3,1),opacity .3s ease;
+  transition:transform .5s cubic-bezier(.22,1,.3,1),opacity .35s ease;
 }
 #hand.drag .cw{transition:none;}
 
 .ct{
+  --cc:#fff;
   width:232px;height:366px;
-  border-radius:18px;
-  position:relative;overflow:hidden;
-  box-shadow:0 18px 44px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.10);
+  border-radius:18px;overflow:hidden;
+  display:flex;flex-direction:column;
+  background:var(--cc);
+  border:2.5px solid var(--cc);
+  box-shadow:0 18px 44px rgba(0,0,0,.55);
   user-select:none;
 }
-.ct-grad{position:absolute;inset:0;}
-.ct-art{position:absolute;inset:0;background-size:cover;background-position:center;}
+/* Top band = the "thick top border" the name sits on, in the card's pastel color */
+.ct-top{
+  flex-shrink:0;height:40px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--cc);color:var(--navy);
+  font-weight:bold;font-size:19px;line-height:1;padding:0 8px;
+  text-shadow:0 1px 2px rgba(255,255,255,.4);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.ct-body{position:relative;flex:1;overflow:hidden;}
+.ct-grad,.ct-art{position:absolute;inset:0;}
+.ct-art{background-size:cover;background-position:center;display:none;}
+.ct.has-photo .ct-art{display:block;}
 .ct-sheen{
-  content:'';position:absolute;inset:0;
+  position:absolute;inset:0;pointer-events:none;
   background:linear-gradient(155deg,rgba(255,255,255,.22) 0%,transparent 42%);
-  pointer-events:none;
 }
 .ct-init{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-size:128px;font-weight:bold;color:var(--navy);opacity:.85;
-  text-shadow:0 2px 10px rgba(255,255,255,.3);
+  font-size:120px;font-weight:bold;color:var(--navy);opacity:.85;
 }
 .ct.has-photo .ct-init{display:none;}
 .ct-scrim{
-  position:absolute;left:0;right:0;bottom:0;height:46%;
-  background:linear-gradient(transparent,rgba(18,20,52,.82));
+  position:absolute;left:0;right:0;bottom:0;height:40%;
+  background:linear-gradient(transparent,rgba(18,20,52,.78));
   opacity:0;transition:opacity .3s;
 }
 .ct.has-photo .ct-scrim{opacity:1;}
-.ct-label{
-  position:absolute;left:0;right:0;bottom:0;
-  padding:0 14px 20px;text-align:center;
-}
-.ct-name{
-  font-size:23px;font-weight:bold;color:var(--navy);
-  text-shadow:0 1px 8px rgba(255,255,255,.35);
-}
 .ct-rel{
-  font-size:12px;font-style:italic;color:rgba(37,46,114,.72);
-  margin-top:3px;line-height:1.3;
+  position:absolute;left:0;right:0;bottom:0;padding:0 12px 14px;text-align:center;
+  font-size:12px;font-style:italic;color:rgba(37,46,114,.7);
 }
-.ct.has-photo .ct-name{color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.6);}
-.ct.has-photo .ct-rel{color:rgba(255,255,255,.85);text-shadow:0 1px 6px rgba(0,0,0,.5);}
-
+.ct.has-photo .ct-rel{color:rgba(255,255,255,.9);text-shadow:0 1px 6px rgba(0,0,0,.55);}
 .ct-dot{
-  position:absolute;top:12px;right:12px;
+  position:absolute;top:10px;right:10px;
   width:12px;height:12px;border-radius:50%;
   background:#aef0a2;box-shadow:0 0 9px rgba(174,240,162,.9);
   display:none;z-index:3;
@@ -153,12 +156,19 @@ body{
   display:flex;flex-direction:column;
   border-radius:22px 22px 0 0;overflow:hidden;
   transform:translateY(48px);
-  transition:transform .38s cubic-bezier(.16,1,.3,1);
+  transition:transform .38s cubic-bezier(.16,1,.3,1),max-height .35s ease,border-radius .35s ease;
 }
 #eo.vis #ec{transform:translateY(0);}
+#ec.full{max-height:100dvh;border-radius:0;}
+
+#egrab{
+  height:24px;flex-shrink:0;cursor:grab;touch-action:none;
+  display:flex;align-items:center;justify-content:center;
+}
+#egrab::before{content:'';width:42px;height:5px;border-radius:3px;background:rgba(255,255,255,.55);}
 
 #eh{
-  padding:16px 18px 14px;
+  padding:14px 18px 14px;
   display:flex;align-items:center;gap:14px;
   flex-shrink:0;
 }
@@ -167,7 +177,7 @@ body{
   display:flex;align-items:center;justify-content:center;
   font-size:20px;font-weight:bold;color:var(--navy);
   border:2px solid rgba(255,255,255,.4);
-  flex-shrink:0;overflow:hidden;
+  flex-shrink:0;overflow:hidden;background:rgba(255,255,255,.25);
 }
 #ea img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
 
@@ -203,6 +213,22 @@ body{
   caret-color:#5a4a3a;
 }
 #eta::placeholder{color:#b0a890;font-style:italic;}
+
+#enotepix{padding:8px 0 18px;}
+#epix-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+#epix-grid:empty{display:none;}
+.epx{position:relative;}
+.epx img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:9px;display:block;border:1px solid var(--paper-line);}
+.epx-x{
+  position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;
+  background:rgba(0,0,0,.55);color:#fff;border:none;font-size:12px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+#epix-add{
+  margin-top:12px;width:100%;padding:11px;
+  border:1.5px dashed var(--paper-line);border-radius:10px;background:transparent;
+  color:#8a7560;font-family:Georgia,serif;font-size:13px;cursor:pointer;
+}
 
 #ef{
   background:var(--paper);
@@ -269,9 +295,11 @@ body{
   overflow:hidden;
 }
 .he-dot img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
-.he-c{flex:1;}
+.he-c{flex:1;min-width:0;}
 .he-n{font-size:13px;font-weight:bold;color:var(--text);margin-bottom:4px;}
 .he-t{font-size:14px;color:var(--muted);line-height:1.65;}
+.he-pix{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;}
+.he-pix img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;display:block;}
 
 /* ── Photo manager overlay ── */
 #pmo{
@@ -434,6 +462,7 @@ body{
 <!-- Editor overlay -->
 <div id="eo">
   <div id="ec">
+    <div id="egrab" title="Swipe up for full screen"></div>
     <div id="eh">
       <div id="ea"></div>
       <div id="etb">
@@ -445,6 +474,10 @@ body{
     <div id="eb">
       <div id="epr"></div>
       <textarea id="eta" rows="8" placeholder="Write here…"></textarea>
+      <div id="enotepix">
+        <div id="epix-grid"></div>
+        <button id="epix-add">＋ Add photos from the day</button>
+      </div>
     </div>
     <div id="ef">
       <button id="svb">Save ✦</button>
@@ -491,31 +524,31 @@ body{
 const PEOPLE = [
   {
     id:'kotye', name:'Kotye', relation:'Wife', initial:'K',
-    color:'#d76d92',
+    color:'#d76d92', band:'#f6c2d2',
     grad:'linear-gradient(155deg,#f6c2d2 0%,#e89bb4 100%)',
     prompt:'What was something beautiful about Kotye today — a moment you shared, something she said, or something wonderful you noticed in her?'
   },
   {
     id:'auggie', name:'Auggie', relation:'8 years old', initial:'A',
-    color:'#5f87cf',
+    color:'#5f87cf', band:'#bcd4f4',
     grad:'linear-gradient(155deg,#bcd4f4 0%,#90b2e6 100%)',
     prompt:'What was something special about Auggie today — something he did, said, or a moment between the two of you?'
   },
   {
     id:'magnus', name:'Magnus', relation:'Twin · 3 years old', initial:'M',
-    color:'#54a877',
+    color:'#54a877', band:'#c2ecd2',
     grad:'linear-gradient(155deg,#c2ecd2 0%,#92d2ac 100%)',
     prompt:'What was something special about Magnus today — a little moment, a word, or something that made you smile?'
   },
   {
     id:'rowan', name:'Rowan', relation:'Twin · 3 years old', initial:'R',
-    color:'#dd9355',
+    color:'#dd9355', band:'#f8d3ad',
     grad:'linear-gradient(155deg,#f8d3ad 0%,#eeb284 100%)',
     prompt:'What was something special about Rowan today — a little moment, a word, or something that made you smile?'
   },
   {
     id:'me', name:'Me', relation:'My own day', initial:'✦',
-    color:'#9173c9',
+    color:'#9173c9', band:'#d8c6f0',
     grad:'linear-gradient(155deg,#d8c6f0 0%,#b59ddc 100%)',
     prompt:'What was something special about your own day — a feeling, a moment just for you, or something you\'re quietly grateful for?'
   }
@@ -548,6 +581,40 @@ function escapeHtml(s){
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ─── Generic IndexedDB (audio tracks + day photos) ────────────────────────────
+function openDB(name, store){
+  return new Promise((res,rej)=>{
+    const r = indexedDB.open(name,1);
+    r.onupgradeneeded = () => {
+      if(!r.result.objectStoreNames.contains(store))
+        r.result.createObjectStore(store,{keyPath:'id'});
+    };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function idbGetAll(name,store){
+  const db = await openDB(name,store);
+  return new Promise((res,rej)=>{
+    const t = db.transaction(store).objectStore(store).getAll();
+    t.onsuccess=()=>res(t.result); t.onerror=()=>rej(t.error);
+  });
+}
+async function idbPut(name,store,rec){
+  const db = await openDB(name,store);
+  return new Promise((res,rej)=>{
+    const t = db.transaction(store,'readwrite').objectStore(store).put(rec);
+    t.onsuccess=()=>res(); t.onerror=()=>rej(t.error);
+  });
+}
+async function idbDel(name,store,id){
+  const db = await openDB(name,store);
+  return new Promise((res,rej)=>{
+    const t = db.transaction(store,'readwrite').objectStore(store).delete(id);
+    t.onsuccess=()=>res(); t.onerror=()=>rej(t.error);
+  });
+}
+
 // ─── Date / greeting ─────────────────────────────────────────────────────────
 function fmtFull(iso){
   return new Date(iso+'T12:00:00').toLocaleDateString('en-US',
@@ -556,14 +623,6 @@ function fmtFull(iso){
 function fmtShort(iso){
   return new Date(iso+'T12:00:00').toLocaleDateString('en-US',
     {weekday:'long',month:'long',day:'numeric'});
-}
-function greeting(){
-  const h = new Date().getHours();
-  if(h<5)  return 'Still up late…';
-  if(h<12) return 'Good morning, family';
-  if(h<17) return 'Good afternoon, family';
-  if(h<21) return 'Good evening, family';
-  return 'Good night, family';
 }
 
 // ─── Avatar helper (circular, for editor + history + photo mgr) ───────────────
@@ -581,7 +640,9 @@ function avatarContent(person, el){
 // ─── Carousel ─────────────────────────────────────────────────────────────────
 let cards = [];          // .cw nodes
 let activeIdx = 2;       // centered card (Magnus by default)
-const SPREAD = 148, STEP = 160;
+const SPREAD = 148;      // px between card centers
+const STEP   = 148;      // px of drag per card (== SPREAD → cards track the finger 1:1)
+const PROJ   = 130;      // momentum projection (ms)
 
 function renderHand(){
   const hand = document.getElementById('hand');
@@ -599,29 +660,19 @@ function renderHand(){
 
     const card = document.createElement('div');
     card.className='ct'+(hasEntry?' done':'')+(photo?' has-photo':'');
-
-    const grad = document.createElement('div');
-    grad.className='ct-grad';
-    grad.style.background = p.grad;
-    card.appendChild(grad);
-
-    if(photo){
-      const art = document.createElement('div');
-      art.className='ct-art';
-      art.style.backgroundImage = `url("${photo}")`;
-      card.appendChild(art);
-    }
-
-    card.insertAdjacentHTML('beforeend', `
-      <div class="ct-sheen"></div>
-      <div class="ct-init">${p.initial}</div>
-      <div class="ct-scrim"></div>
-      <div class="ct-dot"></div>
-      <div class="ct-label">
-        <div class="ct-name">${escapeHtml(p.name)}</div>
+    card.style.setProperty('--cc', p.band);
+    card.innerHTML = `
+      <div class="ct-top">${escapeHtml(p.name)}</div>
+      <div class="ct-body">
+        <div class="ct-grad" style="background:${p.grad}"></div>
+        <div class="ct-art"></div>
+        <div class="ct-sheen"></div>
+        <div class="ct-init">${p.initial}</div>
+        <div class="ct-scrim"></div>
         <div class="ct-rel">${escapeHtml(p.relation)}</div>
-      </div>
-    `);
+        <div class="ct-dot"></div>
+      </div>`;
+    if(photo) card.querySelector('.ct-art').style.backgroundImage = `url("${photo}")`;
 
     wrap.appendChild(card);
     hand.appendChild(wrap);
@@ -649,14 +700,16 @@ function layout(progress){
   });
 }
 
-// Drag / swipe handling
+// Drag / swipe handling with momentum
 (function(){
   const hand = document.getElementById('hand');
   let dragging=false, startX=0, startY=0, base=0, moved=false, downIdx=-1;
+  let lastX=0, lastT=0, vel=0;
 
   hand.addEventListener('pointerdown', e=>{
     dragging=true; moved=false;
-    startX=e.clientX; startY=e.clientY; base=activeIdx;
+    startX=lastX=e.clientX; startY=e.clientY; base=activeIdx;
+    lastT=performance.now(); vel=0;
     const c=e.target.closest('.cw'); downIdx = c?+c.dataset.i:-1;
     hand.classList.add('drag');
     if(hand.setPointerCapture) try{hand.setPointerCapture(e.pointerId);}catch(_){}
@@ -665,7 +718,10 @@ function layout(progress){
   hand.addEventListener('pointermove', e=>{
     if(!dragging) return;
     const dx=e.clientX-startX, dy=e.clientY-startY;
-    if(Math.abs(dx)>6 || Math.abs(dy)>6) moved=true;
+    if(Math.abs(dx)>5 || Math.abs(dy)>5) moved=true;
+    const now=performance.now(), dt=now-lastT;
+    if(dt>0) vel = (e.clientX-lastX)/dt;       // px per ms
+    lastX=e.clientX; lastT=now;
     let p = base - dx/STEP;
     p = Math.max(0, Math.min(cards.length-1, p));
     layout(p);
@@ -681,8 +737,9 @@ function layout(progress){
       }
       return;
     }
-    const dx=(e.clientX||startX)-startX;
+    const dx=((e.clientX!=null)?e.clientX:startX)-startX;
     let p = base - dx/STEP;
+    p -= (vel*PROJ)/STEP;                       // momentum from flick velocity
     activeIdx = Math.max(0, Math.min(cards.length-1, Math.round(p)));
     layout(activeIdx);
   }
@@ -708,28 +765,33 @@ function updateHint(){
 
 // ─── Editor ──────────────────────────────────────────────────────────────────
 let activePerson = null;
+let editorPixUrls = [];
 
 function openEditor(person){
   activePerson = person;
   const date = today();
 
-  document.getElementById('eh').style.background = person.grad;
+  const grad = person.grad;
+  document.getElementById('egrab').style.background = grad;
+  document.getElementById('eh').style.background = grad;
   const av = document.getElementById('ea');
-  av.innerHTML='';
-  avatarContent(person, av);
+  av.innerHTML=''; avatarContent(person, av);
   document.getElementById('epn').textContent = person.name;
   document.getElementById('edl').textContent = fmtShort(date);
   document.getElementById('epr').textContent = person.prompt;
   document.getElementById('eta').value = load(person.id, date);
   document.getElementById('svb').style.background = person.color;
 
+  renderEditorPix();
   document.getElementById('eo').classList.add('vis');
   setTimeout(()=>document.getElementById('eta').focus(), 420);
 }
 
 function closeEditor(){
   document.getElementById('eo').classList.remove('vis');
+  document.getElementById('ec').classList.remove('full');
   document.getElementById('eta').blur();
+  editorPixUrls.forEach(u=>URL.revokeObjectURL(u)); editorPixUrls=[];
   activePerson = null;
 }
 
@@ -738,6 +800,21 @@ document.getElementById('eo').addEventListener('click', e=>{
   if(e.target===document.getElementById('eo')) closeEditor();
 });
 
+// Swipe up on the grab handle → full screen; swipe down → un-full / close
+(function(){
+  const grab=document.getElementById('egrab'), ec=document.getElementById('ec');
+  let y0=null;
+  grab.addEventListener('pointerdown', e=>{ y0=e.clientY;
+    if(grab.setPointerCapture) try{grab.setPointerCapture(e.pointerId);}catch(_){}
+  });
+  grab.addEventListener('pointerup', e=>{
+    if(y0==null) return;
+    const dy=e.clientY-y0; y0=null;
+    if(dy<-30) ec.classList.add('full');
+    else if(dy>30){ if(ec.classList.contains('full')) ec.classList.remove('full'); else closeEditor(); }
+  });
+})();
+
 document.getElementById('svb').addEventListener('click',()=>{
   if(!activePerson) return;
   save(activePerson.id, today(), document.getElementById('eta').value);
@@ -745,45 +822,115 @@ document.getElementById('svb').addEventListener('click',()=>{
   renderHand();
 });
 
+// ─── Day photos (per person + date, stored in IndexedDB) ──────────────────────
+function fileToResizedBlob(file, maxDim, quality){
+  return new Promise(res=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const c=document.createElement('canvas');
+        const s=Math.min(1, maxDim/Math.max(img.width,img.height));
+        c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        c.toBlob(b=>res(b),'image/jpeg',quality);
+      };
+      img.onerror=()=>res(null);
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function dayPhotosFor(person,date){
+  const all = await idbGetAll('ourdays_pix','photos').catch(()=>[]);
+  return all.filter(r=>r.person===person && r.date===date).sort((a,b)=>a.ts-b.ts);
+}
+async function renderEditorPix(){
+  const grid=document.getElementById('epix-grid');
+  editorPixUrls.forEach(u=>URL.revokeObjectURL(u)); editorPixUrls=[];
+  if(!activePerson){ grid.innerHTML=''; return; }
+  const rows=await dayPhotosFor(activePerson.id, today());
+  grid.innerHTML = rows.map(r=>{
+    const url=URL.createObjectURL(r.blob); editorPixUrls.push(url);
+    return `<div class="epx"><img src="${url}" alt="day photo"><button class="epx-x" onclick="removeDayPhoto('${r.id}')">✕</button></div>`;
+  }).join('');
+}
+async function removeDayPhoto(id){
+  await idbDel('ourdays_pix','photos',id).catch(()=>{});
+  renderEditorPix();
+}
+document.getElementById('epix-add').addEventListener('click',()=>{
+  if(!activePerson) return;
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='image/*'; inp.multiple=true; inp.style.display='none';
+  document.body.appendChild(inp);
+  inp.addEventListener('change', async ()=>{
+    const person=activePerson.id, date=today();
+    for(const f of inp.files){
+      const blob=await fileToResizedBlob(f,1100,0.82);
+      if(!blob) continue;
+      const id=`${person}_${date}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      await idbPut('ourdays_pix','photos',{id,person,date,blob,ts:Date.now()}).catch(()=>{});
+    }
+    renderEditorPix();
+    document.body.removeChild(inp);
+  });
+  inp.click();
+});
+
 // ─── History ─────────────────────────────────────────────────────────────────
-function openHistory(){
+let historyPixUrls = [];
+async function openHistory(){
   const dates = allDates();
   const hl = document.getElementById('hl');
+  historyPixUrls.forEach(u=>URL.revokeObjectURL(u)); historyPixUrls=[];
 
   if(!dates.length){
     hl.innerHTML='<p style="color:var(--muted);padding:24px;text-align:center;font-style:italic;">No entries yet — start writing today.</p>';
-  } else {
-    hl.innerHTML = dates.map(date=>{
-      const entries = PEOPLE.map(p=>({p, text:load(p.id,date)})).filter(e=>e.text.trim());
-      if(!entries.length) return '';
-      return `
-        <div class="hd">
-          <div class="hd-date">${fmtFull(date)}</div>
-          ${entries.map(e=>`
-            <div class="he">
-              <div class="he-dot" style="background:${e.p.color}">
-                ${loadPhoto(e.p.id)
-                  ? `<img src="${loadPhoto(e.p.id)}" alt="${escapeHtml(e.p.name)}">`
-                  : e.p.initial}
-              </div>
-              <div class="he-c">
-                <div class="he-n">${escapeHtml(e.p.name)}</div>
-                <div class="he-t">${escapeHtml(e.text).replace(/\n/g,'<br>')}</div>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      `;
-    }).join('');
+    document.getElementById('ho').classList.add('vis');
+    return;
   }
+
+  const allPix = await idbGetAll('ourdays_pix','photos').catch(()=>[]);
+  const pixFor = (pid,date) => allPix.filter(r=>r.person===pid && r.date===date).sort((a,b)=>a.ts-b.ts);
+
+  hl.innerHTML = dates.map(date=>{
+    const entries = PEOPLE.map(p=>({p, text:load(p.id,date), pix:pixFor(p.id,date)}))
+                          .filter(e=>e.text.trim() || e.pix.length);
+    if(!entries.length) return '';
+    return `
+      <div class="hd">
+        <div class="hd-date">${fmtFull(date)}</div>
+        ${entries.map(e=>`
+          <div class="he">
+            <div class="he-dot" style="background:${e.p.color}">
+              ${loadPhoto(e.p.id)
+                ? `<img src="${loadPhoto(e.p.id)}" alt="${escapeHtml(e.p.name)}">`
+                : e.p.initial}
+            </div>
+            <div class="he-c">
+              <div class="he-n">${escapeHtml(e.p.name)}</div>
+              ${e.text.trim()?`<div class="he-t">${escapeHtml(e.text).replace(/\n/g,'<br>')}</div>`:''}
+              ${e.pix.length?`<div class="he-pix">${e.pix.map(r=>{
+                const u=URL.createObjectURL(r.blob); historyPixUrls.push(u);
+                return `<img src="${u}" alt="day photo">`;
+              }).join('')}</div>`:''}
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+  }).join('');
 
   document.getElementById('ho').classList.add('vis');
 }
 
 document.getElementById('hib').addEventListener('click', openHistory);
-document.getElementById('hoc').addEventListener('click',()=>document.getElementById('ho').classList.remove('vis'));
+document.getElementById('hoc').addEventListener('click',()=>{
+  document.getElementById('ho').classList.remove('vis');
+  historyPixUrls.forEach(u=>URL.revokeObjectURL(u)); historyPixUrls=[];
+});
 
-// ─── Photo manager ────────────────────────────────────────────────────────────
+// ─── Photo manager (card full-art photos) ─────────────────────────────────────
 function fillPhotoManager(){
   const list = document.getElementById('pml');
   list.innerHTML = PEOPLE.map(p=>{
@@ -800,7 +947,7 @@ function fillPhotoManager(){
         <button class="pm-btn" onclick="photoActions('${p.id}')">${photo ? 'Change' : 'Add Photo'}</button>
       </div>
     `;
-  }).join('') + `<p class="pm-hint">Photos become the card's full-art background. Add from your Photos, Files, or paste a copied image. Stored on this device only.</p>`;
+  }).join('') + `<p class="pm-hint">This sets the card's full-art background. Add from Photos, Files, or paste a copied image. Stored on this device only.</p>`;
 }
 
 function openPhotoManager(){
@@ -808,7 +955,6 @@ function openPhotoManager(){
   document.getElementById('pmo').classList.add('vis');
 }
 
-// Action sheet: choose photo source
 function photoActions(id){
   const has = !!loadPhoto(id);
   document.getElementById('asc').innerHTML = `
@@ -825,7 +971,6 @@ document.getElementById('as').addEventListener('click', e=>{
   if(e.target===document.getElementById('as')) closeSheet();
 });
 
-// Image pipeline (works with File or Blob)
 function resizeAndSave(dataUrl, id){
   const img = new Image();
   img.onload = () => {
@@ -855,11 +1000,9 @@ function afterPhotoChange(){
   if(document.getElementById('pmo').classList.contains('vis')) fillPhotoManager();
   closeSheet();
 }
-
-// Source: Photos / Files
 function filePhoto(id){
   const input = document.createElement('input');
-  input.type='file'; input.accept='image/*';   // no `capture` → offers Library + Files
+  input.type='file'; input.accept='image/*';
   input.style.display='none';
   document.body.appendChild(input);
   input.addEventListener('change',()=>{
@@ -869,8 +1012,6 @@ function filePhoto(id){
   });
   input.click();
 }
-
-// Source: Clipboard
 async function pastePhoto(id){
   if(!(navigator.clipboard && navigator.clipboard.read)){
     alert('Clipboard access isn\'t available here. Copy an image, then use "Choose from Photos or Files".');
@@ -887,7 +1028,6 @@ async function pastePhoto(id){
     alert('Could not read the clipboard. Copy an image first, then try again.');
   }
 }
-
 function removePhoto(id){
   localStorage.removeItem(`ourdays_photo_${id}`);
   afterPhotoChange();
@@ -896,22 +1036,25 @@ function removePhoto(id){
 document.getElementById('pb').addEventListener('click', openPhotoManager);
 document.getElementById('pmc').addEventListener('click',()=>document.getElementById('pmo').classList.remove('vis'));
 
-// ─── Stars (full-screen, density-based, with shooting stars) ──────────────────
+// ─── Stars (full-screen, slow twinkle, shooting stars) ────────────────────────
 function initStars(){
   const canvas = document.getElementById('stars-canvas');
   const ctx = canvas.getContext('2d');
-  let stars = [], shooting = [];
+  let stars = [], shooting = [], W=0, H=0;
 
   function build(){
-    canvas.width = innerWidth;
-    canvas.height = innerHeight;
-    const count = Math.min(420, Math.round(canvas.width*canvas.height/6200));
+    W = canvas.offsetWidth; H = canvas.offsetHeight;
+    const dpr = Math.min(window.devicePixelRatio||1, 2);
+    canvas.width = Math.round(W*dpr);
+    canvas.height = Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const count = Math.min(460, Math.round(W*H/6000));
     stars = Array.from({length:count},()=>({
-      x:Math.random()*canvas.width,
-      y:Math.random()*canvas.height,
+      x:Math.random()*W,
+      y:Math.random()*H,
       r:Math.random()*1.2+.3,
       a:Math.random()*.6+.25,
-      s:Math.random()*.004+.001,
+      s:Math.random()*.003+.0007,   // slower twinkle rate
       ph:Math.random()*Math.PI*2
     }));
   }
@@ -920,19 +1063,17 @@ function initStars(){
 
   let t=0;
   (function tick(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.clearRect(0,0,W,H);
     stars.forEach(s=>{
-      const op = s.a*(0.5+0.5*Math.sin(t*s.s*60+s.ph));
+      const op = s.a*(0.5+0.5*Math.sin(t*s.s*22+s.ph));   // slow shimmer
       ctx.beginPath();
       ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
       ctx.fillStyle=`rgba(245,238,210,${op.toFixed(3)})`;
       ctx.fill();
     });
-    // occasional shooting star
     if(Math.random()<0.003 && shooting.length<2){
       shooting.push({
-        x:Math.random()*canvas.width*0.7,
-        y:Math.random()*canvas.height*0.4,
+        x:Math.random()*W*0.7, y:Math.random()*H*0.4,
         vx:6+Math.random()*4, vy:2.4+Math.random()*1.6,
         life:0, len:Math.random()*55+45
       });
@@ -945,7 +1086,7 @@ function initStars(){
       grad.addColorStop(1,'rgba(247,240,214,0)');
       ctx.strokeStyle=grad; ctx.lineWidth=1.6;
       ctx.beginPath(); ctx.moveTo(sh.x,sh.y); ctx.lineTo(tx,ty); ctx.stroke();
-      return sh.life<75 && sh.x<canvas.width+60 && sh.y<canvas.height+60;
+      return sh.life<75 && sh.x<W+60 && sh.y<H+60;
     });
     t++;
     requestAnimationFrame(tick);
@@ -1014,7 +1155,7 @@ function scheduleLoop(startT){
 function togglePiano(){
   initAudio();
   if(!pianoOn){
-    if(MS.playing){ MS.audio.pause(); MS.playing=false; }   // stop playlist
+    if(MS.playing){ MS.audio.pause(); MS.playing=false; }
     pianoOn=true;
     if(actx.state==='suspended') actx.resume();
     master.gain.setValueAtTime(0.001,actx.currentTime);
@@ -1035,7 +1176,7 @@ function stopPiano(){
 const MS = {
   mode: localStorage.getItem('ourdays_music_mode') || 'piano',
   shuffle: localStorage.getItem('ourdays_music_shuffle')==='1',
-  loop: localStorage.getItem('ourdays_music_loop')!=='0',  // default on
+  loop: localStorage.getItem('ourdays_music_loop')!=='0',
   tracks: [], order: [], pos: 0, url: null,
   audio: new Audio(), playing: false
 };
@@ -1046,37 +1187,6 @@ function saveMSsettings(){
   localStorage.setItem('ourdays_music_shuffle', MS.shuffle?'1':'0');
   localStorage.setItem('ourdays_music_loop', MS.loop?'1':'0');
 }
-
-function idb(){
-  return new Promise((res,rej)=>{
-    const r = indexedDB.open('ourdays_music',1);
-    r.onupgradeneeded = () => r.result.createObjectStore('tracks',{keyPath:'id'});
-    r.onsuccess = () => res(r.result);
-    r.onerror = () => rej(r.error);
-  });
-}
-async function idbAll(){
-  const db = await idb();
-  return new Promise((res,rej)=>{
-    const t = db.transaction('tracks').objectStore('tracks').getAll();
-    t.onsuccess=()=>res(t.result); t.onerror=()=>rej(t.error);
-  });
-}
-async function idbPut(rec){
-  const db = await idb();
-  return new Promise((res,rej)=>{
-    const t = db.transaction('tracks','readwrite').objectStore('tracks').put(rec);
-    t.onsuccess=()=>res(); t.onerror=()=>rej(t.error);
-  });
-}
-async function idbDel(id){
-  const db = await idb();
-  return new Promise((res,rej)=>{
-    const t = db.transaction('tracks','readwrite').objectStore('tracks').delete(id);
-    t.onsuccess=()=>res(); t.onerror=()=>rej(t.error);
-  });
-}
-
 function buildOrder(){
   MS.order = MS.tracks.map((_,i)=>i);
   if(MS.shuffle){
@@ -1103,7 +1213,6 @@ MS.audio.addEventListener('ended',()=>{
   else if(MS.loop){ buildOrder(); playPos(0); }
   else { MS.playing=false; updateMusicBtn(); renderMusicPanel(); }
 });
-
 function togglePlaylist(){
   if(!MS.tracks.length){ addTracks(); return; }
   if(MS.playing){
@@ -1115,13 +1224,8 @@ function togglePlaylist(){
   }
   updateMusicBtn(); renderMusicPanel();
 }
-function toggleShuffle(){
-  MS.shuffle=!MS.shuffle; saveMSsettings();
-  buildOrder(); renderMusicPanel();
-}
-function toggleLoop(){
-  MS.loop=!MS.loop; saveMSsettings(); renderMusicPanel();
-}
+function toggleShuffle(){ MS.shuffle=!MS.shuffle; saveMSsettings(); buildOrder(); renderMusicPanel(); }
+function toggleLoop(){ MS.loop=!MS.loop; saveMSsettings(); renderMusicPanel(); }
 function addTracks(){
   const inp=document.createElement('input');
   inp.type='file'; inp.accept='audio/*'; inp.multiple=true; inp.style.display='none';
@@ -1133,7 +1237,7 @@ function addTracks(){
         name:f.name.replace(/\.[^.]+$/,''),
         blob:f
       };
-      try{ await idbPut(rec); MS.tracks.push(rec); }catch(_){}
+      try{ await idbPut('ourdays_music','tracks',rec); MS.tracks.push(rec); }catch(_){}
     }
     buildOrder(); renderMusicPanel();
     document.body.removeChild(inp);
@@ -1143,34 +1247,30 @@ function addTracks(){
 async function delTrack(id){
   const wasCurrent = MS.tracks.length && MS.tracks[MS.order[MS.pos]] &&
                      MS.tracks[MS.order[MS.pos]].id===id;
-  try{ await idbDel(id); }catch(_){}
+  try{ await idbDel('ourdays_music','tracks',id); }catch(_){}
   MS.tracks = MS.tracks.filter(t=>t.id!==id);
   if(wasCurrent || !MS.tracks.length){ MS.audio.pause(); MS.playing=false; }
   buildOrder(); updateMusicBtn(); renderMusicPanel();
 }
 async function loadMusic(){
-  try{ MS.tracks = await idbAll(); buildOrder(); }catch(_){}
+  try{ MS.tracks = await idbGetAll('ourdays_music','tracks'); buildOrder(); }catch(_){}
 }
-
 function setMusicMode(m){
   MS.mode=m; saveMSsettings();
   if(m==='piano'){ if(MS.playing){ MS.audio.pause(); MS.playing=false; } }
   else { if(pianoOn) stopPiano(); }
   updateMusicBtn(); renderMusicPanel();
 }
-
 function updateMusicBtn(){
   const b=document.getElementById('mb');
   const on = pianoOn || MS.playing;
   b.classList.toggle('on', on);
   b.textContent = on ? '♪' : '♩';
 }
-
 function renderMusicPanel(){
   const el=document.getElementById('mul');
   const pill=(m,label)=>`<button class="mu-pill${MS.mode===m?' on':''}" onclick="setMusicMode('${m}')">${label}</button>`;
   let html=`<div class="mu-modes">${pill('piano','Ambient Piano')}${pill('playlist','My Playlist')}</div>`;
-
   if(MS.mode==='piano'){
     html+=`
       <p class="mu-desc">A gentle, ever-changing pentatonic piano — generated live on the device. No files, no internet.</p>
@@ -1200,7 +1300,6 @@ function renderMusicPanel(){
   }
   el.innerHTML=html;
 }
-
 function openMusicPanel(){
   renderMusicPanel();
   document.getElementById('muo').classList.add('vis');
@@ -1211,7 +1310,7 @@ document.getElementById('muc').addEventListener('click',()=>document.getElementB
 // ─── Init ─────────────────────────────────────────────────────────────────────
 function init(){
   document.getElementById('date-label').textContent = fmtFull(today());
-  document.getElementById('greeting').textContent = greeting();
+  document.getElementById('greeting').textContent = 'Remember Always';
   initStars();
   renderHand();
   loadMusic();

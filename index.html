@@ -75,11 +75,13 @@ body{
 #hint.complete{color:#bfe9b6;}
 
 /* ── Carousel / hand ── */
-/* Fixed to the viewport bottom (like the background layers) so cards reach the
-   true physical screen edge, not the shorter 100dvh boundary iOS reports. */
+/* Anchored top:0 with an explicit pixel height set in JS (the SAME value the
+   star canvas uses) so its bottom lands on the true physical screen edge.
+   iOS's fixed; bottom:0 pins to the safe-area line, not the physical edge —
+   which is why a top-anchored, full-pixel-height layer reaches the bottom but
+   a bottom-anchored one does not. */
 #hand{
-  position:fixed;left:0;right:0;bottom:0;
-  height:66vh;height:66dvh;
+  position:fixed;top:0;left:0;width:100%;
   z-index:2;
   touch-action:none;
   perspective:1400px;
@@ -1063,6 +1065,10 @@ function initStars(){
     H = Math.max(window.innerHeight, document.documentElement.clientHeight, window.screen.height||0);
     canvas.style.width = W+'px';
     canvas.style.height = H+'px';
+    // Anchor the card area to the exact same full-screen height so the cards'
+    // bottoms land on the true physical edge (not the short 100dvh/safe-area line).
+    const hand = document.getElementById('hand');
+    if(hand) hand.style.height = H+'px';
     const dpr = Math.min(window.devicePixelRatio||1, 2);
     canvas.width = Math.round(W*dpr);
     canvas.height = Math.round(H*dpr);

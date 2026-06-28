@@ -7,19 +7,22 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Our Days">
 <title>Our Days</title>
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230d0c1d'/%3E%3Ctext y='.9em' font-size='80' x='10'%3E%F0%9F%8C%9F%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231b1e4a'/%3E%3Ctext y='.9em' font-size='80' x='10'%3E%F0%9F%8C%9F%3C/text%3E%3C/svg%3E">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 
 :root{
-  --bg:#0d0c1d;
-  --gold:#f4c95d;
-  --gold-dim:rgba(244,201,93,0.3);
-  --text:#f0ede6;
-  --muted:#9b96b0;
-  --paper:#faf7f0;
-  --paper-line:#d4c9b0;
-  --paper-ink:#2c2820;
+  /* Slumberland twilight palette */
+  --bg:#1b1e4a;
+  --gold:#f0d79a;
+  --gold-dim:rgba(240,215,154,0.32);
+  --cream:#f3e9cf;
+  --navy:#252e72;
+  --text:#f3ecd9;
+  --muted:#a9a6cf;
+  --paper:#fbf6ea;
+  --paper-line:#ddd0b4;
+  --paper-ink:#2b2740;
 }
 
 html,body{height:100%;overflow:hidden;}
@@ -29,9 +32,11 @@ body{
   color:var(--text);
   font-family:Georgia,'Times New Roman',serif;
   background-image:
-    radial-gradient(ellipse at 20% 50%,rgba(120,80,200,.15) 0%,transparent 55%),
-    radial-gradient(ellipse at 80% 15%,rgba(80,120,200,.10) 0%,transparent 45%),
-    radial-gradient(ellipse at 55% 85%,rgba(200,80,100,.08) 0%,transparent 35%);
+    radial-gradient(ellipse 75% 48% at 50% 20%, rgba(243,233,207,.22) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 6%, rgba(78,96,182,.45) 0%, transparent 55%),
+    radial-gradient(ellipse at 14% 92%, rgba(240,182,142,.16) 0%, transparent 50%),
+    radial-gradient(ellipse at 86% 96%, rgba(150,210,180,.13) 0%, transparent 46%),
+    linear-gradient(180deg,#171a44 0%, #24235c 52%, #2c2768 100%);
 }
 
 #stars-canvas{position:fixed;inset:0;pointer-events:none;z-index:0;}
@@ -55,69 +60,85 @@ body{
 }
 #greeting{
   font-size:24px;color:var(--gold);margin-top:6px;font-style:italic;
+  text-shadow:0 1px 12px rgba(240,215,154,.25);
 }
 #hint{
   font-size:12px;color:var(--muted);margin-top:8px;min-height:18px;
   transition:color .4s;
 }
-#hint.complete{color:#a8e6a3;}
+#hint.complete{color:#bfe9b6;}
 
-/* ── Hand / fan ── */
+/* ── Carousel / hand ── */
 #hand{
   flex:1;position:relative;width:100%;
-  display:flex;align-items:flex-end;justify-content:center;
-  padding-bottom:55px;
-  perspective:1200px;
+  touch-action:none;
+  overflow:visible;
+  perspective:1400px;
 }
 
 .cw{
-  position:absolute;
+  position:absolute;left:50%;bottom:-104px;
   cursor:pointer;
   transform-origin:center bottom;
+  will-change:transform,opacity;
   -webkit-tap-highlight-color:transparent;
-  transition:filter .2s;
+  transition:transform .42s cubic-bezier(.16,1,.3,1),opacity .3s ease;
 }
-.cw:active{filter:brightness(1.18);}
+#hand.drag .cw{transition:none;}
 
 .ct{
-  width:92px;height:138px;
-  border-radius:14px;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:9px;
-  box-shadow:0 8px 30px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.07);
+  width:232px;height:366px;
+  border-radius:18px;
   position:relative;overflow:hidden;
+  box-shadow:0 18px 44px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.10);
   user-select:none;
 }
-.ct::before{
+.ct-grad{position:absolute;inset:0;}
+.ct-art{position:absolute;inset:0;background-size:cover;background-position:center;}
+.ct-sheen{
   content:'';position:absolute;inset:0;
-  background:linear-gradient(155deg,rgba(255,255,255,.13) 0%,transparent 60%);
+  background:linear-gradient(155deg,rgba(255,255,255,.22) 0%,transparent 42%);
+  pointer-events:none;
 }
-
-.ct-av{
-  width:50px;height:50px;border-radius:50%;
-  background:rgba(255,255,255,.18);
-  border:2px solid rgba(255,255,255,.28);
-  display:flex;align-items:center;justify-content:center;
-  font-size:22px;font-weight:bold;color:#fff;
-  overflow:hidden;flex-shrink:0;
+.ct-init{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:128px;font-weight:bold;color:var(--navy);opacity:.85;
+  text-shadow:0 2px 10px rgba(255,255,255,.3);
 }
-.ct-av img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
-
-.ct-name{font-size:14px;font-weight:bold;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.35);}
-.ct-rel{font-size:10px;color:rgba(255,255,255,.7);font-style:italic;text-align:center;padding:0 6px;line-height:1.3;}
+.ct.has-photo .ct-init{display:none;}
+.ct-scrim{
+  position:absolute;left:0;right:0;bottom:0;height:46%;
+  background:linear-gradient(transparent,rgba(18,20,52,.82));
+  opacity:0;transition:opacity .3s;
+}
+.ct.has-photo .ct-scrim{opacity:1;}
+.ct-label{
+  position:absolute;left:0;right:0;bottom:0;
+  padding:0 14px 20px;text-align:center;
+}
+.ct-name{
+  font-size:23px;font-weight:bold;color:var(--navy);
+  text-shadow:0 1px 8px rgba(255,255,255,.35);
+}
+.ct-rel{
+  font-size:12px;font-style:italic;color:rgba(37,46,114,.72);
+  margin-top:3px;line-height:1.3;
+}
+.ct.has-photo .ct-name{color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.6);}
+.ct.has-photo .ct-rel{color:rgba(255,255,255,.85);text-shadow:0 1px 6px rgba(0,0,0,.5);}
 
 .ct-dot{
-  position:absolute;top:8px;right:8px;
-  width:9px;height:9px;border-radius:50%;
-  background:#a8e6a3;box-shadow:0 0 7px rgba(168,230,163,.8);
-  display:none;
+  position:absolute;top:12px;right:12px;
+  width:12px;height:12px;border-radius:50%;
+  background:#aef0a2;box-shadow:0 0 9px rgba(174,240,162,.9);
+  display:none;z-index:3;
 }
 .ct.done .ct-dot{display:block;}
 
 /* ── Editor overlay ── */
 #eo{
   position:fixed;inset:0;z-index:100;
-  background:rgba(8,7,22,.88);
+  background:rgba(14,15,44,.86);
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   display:flex;align-items:flex-end;justify-content:center;
   opacity:0;pointer-events:none;
@@ -144,18 +165,18 @@ body{
 #ea{
   width:44px;height:44px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
-  font-size:20px;font-weight:bold;color:#fff;
-  border:2px solid rgba(255,255,255,.25);
+  font-size:20px;font-weight:bold;color:var(--navy);
+  border:2px solid rgba(255,255,255,.4);
   flex-shrink:0;overflow:hidden;
 }
 #ea img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
 
 #etb{flex:1;}
-#epn{font-size:19px;font-weight:bold;color:#fff;}
-#edl{font-size:11px;color:rgba(255,255,255,.62);margin-top:2px;}
+#epn{font-size:19px;font-weight:bold;color:var(--navy);}
+#edl{font-size:11px;color:rgba(37,46,114,.6);margin-top:2px;}
 
 #xcb{
-  background:rgba(255,255,255,.12);border:none;color:#fff;
+  background:rgba(37,46,114,.16);border:none;color:var(--navy);
   width:34px;height:34px;border-radius:50%;
   font-size:16px;display:flex;align-items:center;justify-content:center;
   cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;
@@ -210,6 +231,7 @@ body{
 #ho{
   position:fixed;inset:0;z-index:200;
   background:var(--bg);
+  background-image:linear-gradient(180deg,#171a44 0%,#26235e 100%);
   display:flex;flex-direction:column;
   transform:translateY(100%);
   transition:transform .4s cubic-bezier(.16,1,.3,1);
@@ -254,7 +276,7 @@ body{
 /* ── Photo manager overlay ── */
 #pmo{
   position:fixed;inset:0;z-index:300;
-  background:rgba(8,7,22,.95);
+  background:rgba(14,15,44,.95);
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   display:flex;flex-direction:column;
   transform:translateY(100%);
@@ -300,33 +322,101 @@ body{
   padding:16px 0 0;line-height:1.6;font-style:italic;
 }
 
-/* ── Music button ── */
-#mb{
-  position:fixed;bottom:calc(18px + env(safe-area-inset-bottom,0));right:18px;
-  z-index:50;width:46px;height:46px;border-radius:50%;
-  border:1.5px solid rgba(255,255,255,.14);
-  background:rgba(255,255,255,.07);
+/* ── Music overlay ── */
+#muo{
+  position:fixed;inset:0;z-index:300;
+  background:rgba(14,15,44,.95);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  display:flex;flex-direction:column;
+  transform:translateY(100%);
+  transition:transform .4s cubic-bezier(.16,1,.3,1);
+}
+#muo.vis{transform:translateY(0);}
+#muh{
+  padding:calc(env(safe-area-inset-top,16px) + 14px) 20px 14px;
+  display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+#mut{font-size:19px;color:var(--gold);flex:1;font-style:italic;}
+#muc{
+  background:rgba(255,255,255,.1);border:none;color:#fff;
+  width:34px;height:34px;border-radius:50%;
+  font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+#mul{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 16px 24px;}
+.mu-modes{display:flex;gap:8px;margin-bottom:18px;}
+.mu-pill{
+  flex:1;padding:11px;border-radius:10px;
+  border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);
+  color:var(--muted);font-size:14px;font-family:Georgia,serif;cursor:pointer;
+}
+.mu-pill.on{color:var(--navy);background:var(--gold);border-color:var(--gold);font-weight:bold;}
+.mu-desc{font-size:13px;color:var(--muted);font-style:italic;line-height:1.6;margin-bottom:16px;text-align:center;}
+.mu-big{
+  width:100%;padding:15px;border-radius:12px;border:none;
+  background:var(--gold);color:var(--navy);font-weight:bold;
+  font-size:17px;font-family:Georgia,serif;cursor:pointer;margin-bottom:16px;
+}
+.mu-toggles{display:flex;gap:10px;margin-bottom:14px;}
+.mu-tog{
+  flex:1;padding:11px;border-radius:10px;
+  border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);
+  color:var(--muted);font-size:13px;font-family:Georgia,serif;cursor:pointer;
+}
+.mu-tog.on{color:var(--navy);background:#bfe9b6;border-color:#bfe9b6;font-weight:bold;}
+.mu-list{margin-bottom:16px;}
+.mu-track{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 4px;border-bottom:1px solid rgba(255,255,255,.07);
+}
+.mu-track.cur .mu-tn{color:var(--gold);}
+.mu-tn{flex:1;font-size:14px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mu-del{
+  background:rgba(255,255,255,.08);border:none;color:#ff9a9a;
+  width:28px;height:28px;border-radius:50%;font-size:13px;cursor:pointer;flex-shrink:0;
+}
+.mu-add{
+  width:100%;padding:13px;border-radius:10px;
+  border:1.5px dashed rgba(255,255,255,.25);background:transparent;
+  color:var(--text);font-size:14px;font-family:Georgia,serif;cursor:pointer;
+}
+
+/* ── Action sheet (photo source picker) ── */
+#as{
+  position:fixed;inset:0;z-index:400;
+  background:rgba(8,7,22,.6);
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .25s;
+  padding:0 12px calc(12px + env(safe-area-inset-bottom,0));
+}
+#as.vis{opacity:1;pointer-events:all;}
+#asc{width:100%;max-width:440px;}
+.as-grp{background:rgba(44,44,82,.97);border-radius:16px;overflow:hidden;margin-bottom:8px;}
+.as-b{
+  display:block;width:100%;padding:16px;background:none;border:none;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  color:var(--text);font-size:16px;font-family:Georgia,serif;cursor:pointer;
+}
+.as-b:last-child{border-bottom:none;}
+.as-b.danger{color:#ff9a9a;}
+.as-cancel{font-weight:bold;color:var(--gold);}
+
+/* ── Floating buttons ── */
+#mb,#pb{
+  position:fixed;bottom:calc(18px + env(safe-area-inset-bottom,0));
+  z-index:96;width:46px;height:46px;border-radius:50%;
+  border:1.5px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.08);
   backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-  color:var(--muted);font-size:20px;
+  color:var(--muted);
   display:flex;align-items:center;justify-content:center;
   cursor:pointer;-webkit-tap-highlight-color:transparent;
   transition:color .25s,background .25s,border-color .25s;
 }
-#mb.on{color:var(--gold);background:rgba(244,201,93,.12);border-color:var(--gold-dim);}
-
-/* ── Photos button ── */
-#pb{
-  position:fixed;bottom:calc(18px + env(safe-area-inset-bottom,0));left:18px;
-  z-index:50;width:46px;height:46px;border-radius:50%;
-  border:1.5px solid rgba(255,255,255,.14);
-  background:rgba(255,255,255,.07);
-  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-  color:var(--muted);font-size:18px;
-  display:flex;align-items:center;justify-content:center;
-  cursor:pointer;-webkit-tap-highlight-color:transparent;
-  transition:color .25s,background .25s;
-}
-#pb:hover{color:var(--text);}
+#mb{right:18px;font-size:20px;}
+#pb{left:18px;font-size:18px;}
+#mb.on{color:var(--gold);background:rgba(240,215,154,.14);border-color:var(--gold-dim);}
+#pb:active{color:var(--text);}
 </style>
 </head>
 <body>
@@ -381,7 +471,19 @@ body{
   <div id="pml"></div>
 </div>
 
-<button id="mb" aria-label="Toggle music">♩</button>
+<!-- Music overlay -->
+<div id="muo">
+  <div id="muh">
+    <span id="mut">Music</span>
+    <button id="muc" aria-label="Close">✕</button>
+  </div>
+  <div id="mul"></div>
+</div>
+
+<!-- Action sheet -->
+<div id="as"><div id="asc"></div></div>
+
+<button id="mb" aria-label="Music">♩</button>
 <button id="pb" aria-label="Add photos">📷</button>
 
 <script>
@@ -389,43 +491,34 @@ body{
 const PEOPLE = [
   {
     id:'kotye', name:'Kotye', relation:'Wife', initial:'K',
-    color:'#b05575',
-    grad:'linear-gradient(148deg,#c8688a 0%,#8a3a58 100%)',
+    color:'#d76d92',
+    grad:'linear-gradient(155deg,#f6c2d2 0%,#e89bb4 100%)',
     prompt:'What was something beautiful about Kotye today — a moment you shared, something she said, or something wonderful you noticed in her?'
   },
   {
     id:'auggie', name:'Auggie', relation:'8 years old', initial:'A',
-    color:'#3a7fc1',
-    grad:'linear-gradient(148deg,#4a90d2 0%,#285888 100%)',
+    color:'#5f87cf',
+    grad:'linear-gradient(155deg,#bcd4f4 0%,#90b2e6 100%)',
     prompt:'What was something special about Auggie today — something he did, said, or a moment between the two of you?'
   },
   {
     id:'magnus', name:'Magnus', relation:'Twin · 3 years old', initial:'M',
-    color:'#3d8f5f',
-    grad:'linear-gradient(148deg,#4da070 0%,#2a6040 100%)',
+    color:'#54a877',
+    grad:'linear-gradient(155deg,#c2ecd2 0%,#92d2ac 100%)',
     prompt:'What was something special about Magnus today — a little moment, a word, or something that made you smile?'
   },
   {
     id:'rowan', name:'Rowan', relation:'Twin · 3 years old', initial:'R',
-    color:'#c07830',
-    grad:'linear-gradient(148deg,#d08840 0%,#8a5815 100%)',
+    color:'#dd9355',
+    grad:'linear-gradient(155deg,#f8d3ad 0%,#eeb284 100%)',
     prompt:'What was something special about Rowan today — a little moment, a word, or something that made you smile?'
   },
   {
     id:'me', name:'Me', relation:'My own day', initial:'✦',
-    color:'#6a4ab0',
-    grad:'linear-gradient(148deg,#7a5ac0 0%,#482888 100%)',
+    color:'#9173c9',
+    grad:'linear-gradient(155deg,#d8c6f0 0%,#b59ddc 100%)',
     prompt:'What was something special about your own day — a feeling, a moment just for you, or something you\'re quietly grateful for?'
   }
-];
-
-// Fan layout for 5 cards: [rotationDeg, translateX, translateY-upward]
-const FAN = [
-  {r:-22, x:-100, y:28},
-  {r:-11, x: -50, y: 9},
-  {r:  0, x:   0, y: 0},
-  {r: 11, x:  50, y: 9},
-  {r: 22, x: 100, y:28},
 ];
 
 // ─── Storage ─────────────────────────────────────────────────────────────────
@@ -450,6 +543,11 @@ function allDates(){
   return [...s].sort().reverse();
 }
 
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // ─── Date / greeting ─────────────────────────────────────────────────────────
 function fmtFull(iso){
   return new Date(iso+'T12:00:00').toLocaleDateString('en-US',
@@ -468,65 +566,136 @@ function greeting(){
   return 'Good night, family';
 }
 
-// ─── Avatar helper ────────────────────────────────────────────────────────────
-function avatarContent(person, el, size){
+// ─── Avatar helper (circular, for editor + history + photo mgr) ───────────────
+function avatarContent(person, el){
   const photo = loadPhoto(person.id);
   if(photo){
     const img = document.createElement('img');
-    img.src = photo;
-    img.alt = person.name;
-    el.innerHTML='';
-    el.appendChild(img);
+    img.src = photo; img.alt = person.name;
+    el.innerHTML=''; el.appendChild(img);
   } else {
     el.textContent = person.initial;
-    if(size==='sm') el.style.fontSize='20px';
   }
 }
 
-// ─── Render hand ─────────────────────────────────────────────────────────────
+// ─── Carousel ─────────────────────────────────────────────────────────────────
+let cards = [];          // .cw nodes
+let activeIdx = 2;       // centered card (Magnus by default)
+const SPREAD = 148, STEP = 160;
+
 function renderHand(){
   const hand = document.getElementById('hand');
   hand.innerHTML='';
+  cards = [];
   const date = today();
 
   PEOPLE.forEach((p,i)=>{
-    const pos = FAN[i];
     const hasEntry = load(p.id, date).trim().length > 0;
+    const photo = loadPhoto(p.id);
 
     const wrap = document.createElement('div');
     wrap.className='cw';
-    wrap.style.transform=`translateX(${pos.x}px) translateY(${-pos.y}px) rotate(${pos.r}deg)`;
-    wrap.style.zIndex = i===2?5:(i===1||i===3?4:3);
+    wrap.dataset.i = i;
 
     const card = document.createElement('div');
-    card.className='ct'+(hasEntry?' done':'');
-    card.style.background=p.grad;
+    card.className='ct'+(hasEntry?' done':'')+(photo?' has-photo':'');
 
-    const av = document.createElement('div');
-    av.className='ct-av';
-    avatarContent(p, av, 'md');
+    const grad = document.createElement('div');
+    grad.className='ct-grad';
+    grad.style.background = p.grad;
+    card.appendChild(grad);
 
-    card.innerHTML=`
+    if(photo){
+      const art = document.createElement('div');
+      art.className='ct-art';
+      art.style.backgroundImage = `url("${photo}")`;
+      card.appendChild(art);
+    }
+
+    card.insertAdjacentHTML('beforeend', `
+      <div class="ct-sheen"></div>
+      <div class="ct-init">${p.initial}</div>
+      <div class="ct-scrim"></div>
       <div class="ct-dot"></div>
-      <div class="ct-name">${p.name}</div>
-      <div class="ct-rel">${p.relation}</div>
-    `;
-    card.insertBefore(av, card.firstChild);
+      <div class="ct-label">
+        <div class="ct-name">${escapeHtml(p.name)}</div>
+        <div class="ct-rel">${escapeHtml(p.relation)}</div>
+      </div>
+    `);
 
     wrap.appendChild(card);
-    wrap.addEventListener('click',()=>openEditor(p));
     hand.appendChild(wrap);
+    cards.push(wrap);
   });
 
+  if(activeIdx > cards.length-1) activeIdx = cards.length-1;
+  layout(activeIdx);
   updateHint();
 }
+
+function layout(progress){
+  cards.forEach((cw,i)=>{
+    const d = i - progress;
+    const ad = Math.abs(d);
+    const x = d * SPREAD;
+    const y = ad * 24;
+    const sc = Math.max(0.62, 1 - ad*0.15);
+    const rot = d * 5;
+    const op = Math.max(0.35, 1 - ad*0.32);
+    cw.style.transform =
+      `translate(calc(-50% + ${x}px), ${y}px) rotate(${rot}deg) scale(${sc})`;
+    cw.style.zIndex = String(90 - Math.round(ad*12));
+    cw.style.opacity = op.toFixed(2);
+  });
+}
+
+// Drag / swipe handling
+(function(){
+  const hand = document.getElementById('hand');
+  let dragging=false, startX=0, startY=0, base=0, moved=false, downIdx=-1;
+
+  hand.addEventListener('pointerdown', e=>{
+    dragging=true; moved=false;
+    startX=e.clientX; startY=e.clientY; base=activeIdx;
+    const c=e.target.closest('.cw'); downIdx = c?+c.dataset.i:-1;
+    hand.classList.add('drag');
+    if(hand.setPointerCapture) try{hand.setPointerCapture(e.pointerId);}catch(_){}
+  });
+
+  hand.addEventListener('pointermove', e=>{
+    if(!dragging) return;
+    const dx=e.clientX-startX, dy=e.clientY-startY;
+    if(Math.abs(dx)>6 || Math.abs(dy)>6) moved=true;
+    let p = base - dx/STEP;
+    p = Math.max(0, Math.min(cards.length-1, p));
+    layout(p);
+  });
+
+  function end(e){
+    if(!dragging) return;
+    dragging=false; hand.classList.remove('drag');
+    if(!moved){
+      if(downIdx>=0){
+        if(downIdx===activeIdx){ openEditor(PEOPLE[downIdx]); }
+        else { activeIdx=downIdx; layout(activeIdx); }
+      }
+      return;
+    }
+    const dx=(e.clientX||startX)-startX;
+    let p = base - dx/STEP;
+    activeIdx = Math.max(0, Math.min(cards.length-1, Math.round(p)));
+    layout(activeIdx);
+  }
+  hand.addEventListener('pointerup', end);
+  hand.addEventListener('pointercancel', end);
+})();
 
 function updateHint(){
   const date = today();
   const done = PEOPLE.filter(p=>load(p.id,date).trim()).length;
   const el = document.getElementById('hint');
   if(done===0){
-    el.textContent='Tap a card to write today\'s note';
+    el.textContent='Swipe the cards · tap one to write today\'s note';
     el.classList.remove('complete');
   } else if(done<PEOPLE.length){
     el.textContent=`${done} of ${PEOPLE.length} cards written today`;
@@ -547,7 +716,7 @@ function openEditor(person){
   document.getElementById('eh').style.background = person.grad;
   const av = document.getElementById('ea');
   av.innerHTML='';
-  avatarContent(person, av, 'sm');
+  avatarContent(person, av);
   document.getElementById('epn').textContent = person.name;
   document.getElementById('edl').textContent = fmtShort(date);
   document.getElementById('epr').textContent = person.prompt;
@@ -592,14 +761,14 @@ function openHistory(){
           <div class="hd-date">${fmtFull(date)}</div>
           ${entries.map(e=>`
             <div class="he">
-              <div class="he-dot" style="background:${e.p.color}" data-id="${e.p.id}">
+              <div class="he-dot" style="background:${e.p.color}">
                 ${loadPhoto(e.p.id)
-                  ? `<img src="${loadPhoto(e.p.id)}" alt="${e.p.name}">`
+                  ? `<img src="${loadPhoto(e.p.id)}" alt="${escapeHtml(e.p.name)}">`
                   : e.p.initial}
               </div>
               <div class="he-c">
-                <div class="he-n">${e.p.name}</div>
-                <div class="he-t">${e.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>
+                <div class="he-n">${escapeHtml(e.p.name)}</div>
+                <div class="he-t">${escapeHtml(e.text).replace(/\n/g,'<br>')}</div>
               </div>
             </div>
           `).join('')}
@@ -615,79 +784,139 @@ document.getElementById('hib').addEventListener('click', openHistory);
 document.getElementById('hoc').addEventListener('click',()=>document.getElementById('ho').classList.remove('vis'));
 
 // ─── Photo manager ────────────────────────────────────────────────────────────
-function openPhotoManager(){
+function fillPhotoManager(){
   const list = document.getElementById('pml');
   list.innerHTML = PEOPLE.map(p=>{
     const photo = loadPhoto(p.id);
     return `
       <div class="pm-row">
-        <div class="pm-av" style="background:${p.color}" id="pm-av-${p.id}">
-          ${photo ? `<img src="${photo}" alt="${p.name}">` : p.initial}
+        <div class="pm-av" style="background:${p.color}">
+          ${photo ? `<img src="${photo}" alt="${escapeHtml(p.name)}">` : p.initial}
         </div>
         <div class="pm-info">
-          <div class="pm-name">${p.name}</div>
-          <div class="pm-sub">${photo ? 'Photo saved' : 'No photo yet'}</div>
+          <div class="pm-name">${escapeHtml(p.name)}</div>
+          <div class="pm-sub">${photo ? 'Full-art photo saved' : 'No photo yet'}</div>
         </div>
-        <button class="pm-btn" onclick="pickPhoto('${p.id}')">${photo ? 'Change' : 'Add Photo'}</button>
+        <button class="pm-btn" onclick="photoActions('${p.id}')">${photo ? 'Change' : 'Add Photo'}</button>
       </div>
     `;
-  }).join('') + `<p class="pm-hint">Photos are stored only on this device (in browser storage). They appear on the cards and in the journal.</p>`;
+  }).join('') + `<p class="pm-hint">Photos become the card's full-art background. Add from your Photos, Files, or paste a copied image. Stored on this device only.</p>`;
+}
 
+function openPhotoManager(){
+  fillPhotoManager();
   document.getElementById('pmo').classList.add('vis');
 }
 
-function pickPhoto(personId){
+// Action sheet: choose photo source
+function photoActions(id){
+  const has = !!loadPhoto(id);
+  document.getElementById('asc').innerHTML = `
+    <div class="as-grp">
+      <button class="as-b" onclick="filePhoto('${id}')">Choose from Photos or Files</button>
+      <button class="as-b" onclick="pastePhoto('${id}')">Paste from Clipboard</button>
+      ${has?`<button class="as-b danger" onclick="removePhoto('${id}')">Remove Photo</button>`:''}
+    </div>
+    <div class="as-grp"><button class="as-b as-cancel" onclick="closeSheet()">Cancel</button></div>`;
+  document.getElementById('as').classList.add('vis');
+}
+function closeSheet(){ document.getElementById('as').classList.remove('vis'); }
+document.getElementById('as').addEventListener('click', e=>{
+  if(e.target===document.getElementById('as')) closeSheet();
+});
+
+// Image pipeline (works with File or Blob)
+function resizeAndSave(dataUrl, id){
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    const maxDim = 900;
+    const scale = Math.min(1, maxDim/Math.max(img.width,img.height));
+    canvas.width = Math.round(img.width*scale);
+    canvas.height = Math.round(img.height*scale);
+    canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+    try{
+      savePhoto(id, canvas.toDataURL('image/jpeg',0.85));
+    }catch(err){
+      alert('Could not save photo — device storage may be full. Try a smaller image or remove another photo.');
+      return;
+    }
+    afterPhotoChange();
+  };
+  img.src = dataUrl;
+}
+function processImageBlob(blob, id){
+  const reader = new FileReader();
+  reader.onload = e => resizeAndSave(e.target.result, id);
+  reader.readAsDataURL(blob);
+}
+function afterPhotoChange(){
+  renderHand();
+  if(document.getElementById('pmo').classList.contains('vis')) fillPhotoManager();
+  closeSheet();
+}
+
+// Source: Photos / Files
+function filePhoto(id){
   const input = document.createElement('input');
-  input.type='file'; input.accept='image/*'; input.capture='environment';
+  input.type='file'; input.accept='image/*';   // no `capture` → offers Library + Files
   input.style.display='none';
   document.body.appendChild(input);
   input.addEventListener('change',()=>{
     const file = input.files[0];
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-      // Resize to reasonable size before storing
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const maxDim = 400;
-        const scale = Math.min(1, maxDim/Math.max(img.width,img.height));
-        canvas.width = Math.round(img.width*scale);
-        canvas.height = Math.round(img.height*scale);
-        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg',0.85);
-        savePhoto(personId, dataUrl);
-        document.getElementById('pmo').classList.remove('vis');
-        renderHand();
-        setTimeout(openPhotoManager, 350);
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
+    if(file) processImageBlob(file, id);
     document.body.removeChild(input);
   });
   input.click();
 }
 
+// Source: Clipboard
+async function pastePhoto(id){
+  if(!(navigator.clipboard && navigator.clipboard.read)){
+    alert('Clipboard access isn\'t available here. Copy an image, then use "Choose from Photos or Files".');
+    return;
+  }
+  try{
+    const items = await navigator.clipboard.read();
+    for(const it of items){
+      const type = it.types.find(t=>t.startsWith('image/'));
+      if(type){ processImageBlob(await it.getType(type), id); return; }
+    }
+    alert('No image found on the clipboard. Copy an image first, then try again.');
+  }catch(err){
+    alert('Could not read the clipboard. Copy an image first, then try again.');
+  }
+}
+
+function removePhoto(id){
+  localStorage.removeItem(`ourdays_photo_${id}`);
+  afterPhotoChange();
+}
+
 document.getElementById('pb').addEventListener('click', openPhotoManager);
 document.getElementById('pmc').addEventListener('click',()=>document.getElementById('pmo').classList.remove('vis'));
 
-// ─── Stars ────────────────────────────────────────────────────────────────────
+// ─── Stars (full-screen, density-based, with shooting stars) ──────────────────
 function initStars(){
   const canvas = document.getElementById('stars-canvas');
   const ctx = canvas.getContext('2d');
-  const resize = ()=>{ canvas.width=innerWidth; canvas.height=innerHeight; };
-  resize();
-  window.addEventListener('resize', resize);
+  let stars = [], shooting = [];
 
-  const stars = Array.from({length:130},()=>({
-    x:Math.random()*innerWidth,
-    y:Math.random()*innerHeight,
-    r:Math.random()*1.1+.25,
-    a:Math.random()*.7+.2,
-    s:Math.random()*.004+.001,
-    ph:Math.random()*Math.PI*2
-  }));
+  function build(){
+    canvas.width = innerWidth;
+    canvas.height = innerHeight;
+    const count = Math.min(420, Math.round(canvas.width*canvas.height/6200));
+    stars = Array.from({length:count},()=>({
+      x:Math.random()*canvas.width,
+      y:Math.random()*canvas.height,
+      r:Math.random()*1.2+.3,
+      a:Math.random()*.6+.25,
+      s:Math.random()*.004+.001,
+      ph:Math.random()*Math.PI*2
+    }));
+  }
+  build();
+  window.addEventListener('resize', build);
 
   let t=0;
   (function tick(){
@@ -696,36 +925,51 @@ function initStars(){
       const op = s.a*(0.5+0.5*Math.sin(t*s.s*60+s.ph));
       ctx.beginPath();
       ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
-      ctx.fillStyle=`rgba(255,255,255,${op.toFixed(3)})`;
+      ctx.fillStyle=`rgba(245,238,210,${op.toFixed(3)})`;
       ctx.fill();
+    });
+    // occasional shooting star
+    if(Math.random()<0.003 && shooting.length<2){
+      shooting.push({
+        x:Math.random()*canvas.width*0.7,
+        y:Math.random()*canvas.height*0.4,
+        vx:6+Math.random()*4, vy:2.4+Math.random()*1.6,
+        life:0, len:Math.random()*55+45
+      });
+    }
+    shooting = shooting.filter(sh=>{
+      sh.x+=sh.vx; sh.y+=sh.vy; sh.life++;
+      const tx = sh.x - sh.len, ty = sh.y - sh.len*sh.vy/sh.vx;
+      const grad = ctx.createLinearGradient(sh.x,sh.y,tx,ty);
+      grad.addColorStop(0,'rgba(247,240,214,.9)');
+      grad.addColorStop(1,'rgba(247,240,214,0)');
+      ctx.strokeStyle=grad; ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.moveTo(sh.x,sh.y); ctx.lineTo(tx,ty); ctx.stroke();
+      return sh.life<75 && sh.x<canvas.width+60 && sh.y<canvas.height+60;
     });
     t++;
     requestAnimationFrame(tick);
   })();
 }
 
-// ─── Music (Web Audio — pentatonic piano) ─────────────────────────────────────
-let actx=null, master=null, reverb=null, playing=false, musicTimer=null, patIdx=0;
+// ─── Music: ambient piano (generated) ─────────────────────────────────────────
+let actx=null, master=null, reverb=null, pianoOn=false, musicTimer=null, patIdx=0;
 
-// Pentatonic C major (two octaves: C3–A4)
 const PENTA = [130.81,146.83,164.81,196.00,220.00,261.63,293.66,329.63,392.00,440.00];
-const BASS  = [65.41,73.42,82.41,98.00,110.00]; // one octave below
+const BASS  = [65.41,73.42,82.41,98.00,110.00];
 
 function initAudio(){
   if(actx) return;
   actx = new (window.AudioContext||window.webkitAudioContext)();
-  master = actx.createGain(); master.gain.value=0.32; master.connect(actx.destination);
-
-  // Simple stereo reverb via two delays
+  master = actx.createGain(); master.gain.value=0.30; master.connect(actx.destination);
   const d1=actx.createDelay(2); d1.delayTime.value=0.22;
   const d2=actx.createDelay(2); d2.delayTime.value=0.38;
   const fb=actx.createGain(); fb.gain.value=0.22;
   const mix=actx.createGain(); mix.gain.value=0.28;
   d1.connect(fb); d2.connect(fb); fb.connect(d1); fb.connect(d2);
   d1.connect(mix); d2.connect(mix); mix.connect(master);
-  reverb = d1; // entry point
+  reverb = d1;
 }
-
 function note(freq, when, dur, vol){
   const o=actx.createOscillator(), g=actx.createGain();
   const o2=actx.createOscillator(), g2=actx.createGain();
@@ -740,8 +984,6 @@ function note(freq, when, dur, vol){
   o.start(when); o.stop(when+dur+0.6);
   o2.start(when); o2.stop(when+dur+0.6);
 }
-
-// Melodic patterns (indices into PENTA)
 const MPATS = [
   [0,2,4,2,4,5,4,2, 0,4,2,0],
   [7,5,4,2,4,5,7,5, 4,2,0,2],
@@ -754,42 +996,217 @@ const BPATS = [
   [0,0,2,0, 0,2,0,0],
   [2,0,2,4, 2,0,2,0],
 ];
-
 function scheduleLoop(startT){
-  if(!playing) return;
+  if(!pianoOn) return;
   const mp = MPATS[patIdx % MPATS.length];
   const bp = BPATS[patIdx % BPATS.length];
   patIdx++;
   const beat=0.52, total=mp.length*beat;
-
   mp.forEach((ni,i)=>{
-    if(Math.random()<0.1) return; // occasional rest
+    if(Math.random()<0.1) return;
     note(PENTA[ni], startT+i*beat, beat*.88, 0.28+Math.random()*.08);
   });
   bp.forEach((ni,i)=>{
     note(BASS[ni], startT+i*beat*2, beat*1.7, 0.12);
   });
-
   musicTimer = setTimeout(()=>scheduleLoop(actx.currentTime+0.08),(total-0.55)*1000);
 }
-
-function toggleMusic(){
+function togglePiano(){
   initAudio();
-  playing=!playing;
-  const btn=document.getElementById('mb');
-  if(playing){
+  if(!pianoOn){
+    if(MS.playing){ MS.audio.pause(); MS.playing=false; }   // stop playlist
+    pianoOn=true;
     if(actx.state==='suspended') actx.resume();
     master.gain.setValueAtTime(0.001,actx.currentTime);
-    master.gain.linearRampToValueAtTime(0.32,actx.currentTime+1.5);
-    btn.classList.add('on'); btn.textContent='♪';
+    master.gain.linearRampToValueAtTime(0.30,actx.currentTime+1.5);
     scheduleLoop(actx.currentTime+0.1);
   } else {
-    clearTimeout(musicTimer);
-    master.gain.linearRampToValueAtTime(0.001,actx.currentTime+1.8);
-    btn.classList.remove('on'); btn.textContent='♩';
+    stopPiano();
+  }
+  updateMusicBtn(); renderMusicPanel();
+}
+function stopPiano(){
+  pianoOn=false;
+  clearTimeout(musicTimer);
+  if(master) master.gain.linearRampToValueAtTime(0.001,actx.currentTime+1.4);
+}
+
+// ─── Music: imported playlist (IndexedDB) ─────────────────────────────────────
+const MS = {
+  mode: localStorage.getItem('ourdays_music_mode') || 'piano',
+  shuffle: localStorage.getItem('ourdays_music_shuffle')==='1',
+  loop: localStorage.getItem('ourdays_music_loop')!=='0',  // default on
+  tracks: [], order: [], pos: 0, url: null,
+  audio: new Audio(), playing: false
+};
+MS.audio.preload='auto';
+
+function saveMSsettings(){
+  localStorage.setItem('ourdays_music_mode', MS.mode);
+  localStorage.setItem('ourdays_music_shuffle', MS.shuffle?'1':'0');
+  localStorage.setItem('ourdays_music_loop', MS.loop?'1':'0');
+}
+
+function idb(){
+  return new Promise((res,rej)=>{
+    const r = indexedDB.open('ourdays_music',1);
+    r.onupgradeneeded = () => r.result.createObjectStore('tracks',{keyPath:'id'});
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function idbAll(){
+  const db = await idb();
+  return new Promise((res,rej)=>{
+    const t = db.transaction('tracks').objectStore('tracks').getAll();
+    t.onsuccess=()=>res(t.result); t.onerror=()=>rej(t.error);
+  });
+}
+async function idbPut(rec){
+  const db = await idb();
+  return new Promise((res,rej)=>{
+    const t = db.transaction('tracks','readwrite').objectStore('tracks').put(rec);
+    t.onsuccess=()=>res(); t.onerror=()=>rej(t.error);
+  });
+}
+async function idbDel(id){
+  const db = await idb();
+  return new Promise((res,rej)=>{
+    const t = db.transaction('tracks','readwrite').objectStore('tracks').delete(id);
+    t.onsuccess=()=>res(); t.onerror=()=>rej(t.error);
+  });
+}
+
+function buildOrder(){
+  MS.order = MS.tracks.map((_,i)=>i);
+  if(MS.shuffle){
+    for(let i=MS.order.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [MS.order[i],MS.order[j]]=[MS.order[j],MS.order[i]];
+    }
   }
 }
-document.getElementById('mb').addEventListener('click',toggleMusic);
+function playPos(pos){
+  if(!MS.tracks.length) return;
+  const n = MS.order.length;
+  MS.pos = ((pos%n)+n)%n;
+  const tr = MS.tracks[MS.order[MS.pos]];
+  if(MS.url) URL.revokeObjectURL(MS.url);
+  MS.url = URL.createObjectURL(tr.blob);
+  MS.audio.src = MS.url;
+  MS.audio.play().then(()=>{
+    MS.playing=true; updateMusicBtn(); renderMusicPanel();
+  }).catch(()=>{});
+}
+MS.audio.addEventListener('ended',()=>{
+  if(MS.pos+1 < MS.order.length){ playPos(MS.pos+1); }
+  else if(MS.loop){ buildOrder(); playPos(0); }
+  else { MS.playing=false; updateMusicBtn(); renderMusicPanel(); }
+});
+
+function togglePlaylist(){
+  if(!MS.tracks.length){ addTracks(); return; }
+  if(MS.playing){
+    MS.audio.pause(); MS.playing=false;
+  } else {
+    if(pianoOn) stopPiano();
+    if(MS.audio.src){ MS.audio.play(); MS.playing=true; }
+    else { buildOrder(); playPos(0); }
+  }
+  updateMusicBtn(); renderMusicPanel();
+}
+function toggleShuffle(){
+  MS.shuffle=!MS.shuffle; saveMSsettings();
+  buildOrder(); renderMusicPanel();
+}
+function toggleLoop(){
+  MS.loop=!MS.loop; saveMSsettings(); renderMusicPanel();
+}
+function addTracks(){
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='audio/*'; inp.multiple=true; inp.style.display='none';
+  document.body.appendChild(inp);
+  inp.addEventListener('change', async ()=>{
+    for(const f of inp.files){
+      const rec={
+        id:Date.now()+'_'+Math.random().toString(36).slice(2),
+        name:f.name.replace(/\.[^.]+$/,''),
+        blob:f
+      };
+      try{ await idbPut(rec); MS.tracks.push(rec); }catch(_){}
+    }
+    buildOrder(); renderMusicPanel();
+    document.body.removeChild(inp);
+  });
+  inp.click();
+}
+async function delTrack(id){
+  const wasCurrent = MS.tracks.length && MS.tracks[MS.order[MS.pos]] &&
+                     MS.tracks[MS.order[MS.pos]].id===id;
+  try{ await idbDel(id); }catch(_){}
+  MS.tracks = MS.tracks.filter(t=>t.id!==id);
+  if(wasCurrent || !MS.tracks.length){ MS.audio.pause(); MS.playing=false; }
+  buildOrder(); updateMusicBtn(); renderMusicPanel();
+}
+async function loadMusic(){
+  try{ MS.tracks = await idbAll(); buildOrder(); }catch(_){}
+}
+
+function setMusicMode(m){
+  MS.mode=m; saveMSsettings();
+  if(m==='piano'){ if(MS.playing){ MS.audio.pause(); MS.playing=false; } }
+  else { if(pianoOn) stopPiano(); }
+  updateMusicBtn(); renderMusicPanel();
+}
+
+function updateMusicBtn(){
+  const b=document.getElementById('mb');
+  const on = pianoOn || MS.playing;
+  b.classList.toggle('on', on);
+  b.textContent = on ? '♪' : '♩';
+}
+
+function renderMusicPanel(){
+  const el=document.getElementById('mul');
+  const pill=(m,label)=>`<button class="mu-pill${MS.mode===m?' on':''}" onclick="setMusicMode('${m}')">${label}</button>`;
+  let html=`<div class="mu-modes">${pill('piano','Ambient Piano')}${pill('playlist','My Playlist')}</div>`;
+
+  if(MS.mode==='piano'){
+    html+=`
+      <p class="mu-desc">A gentle, ever-changing pentatonic piano — generated live on the device. No files, no internet.</p>
+      <button class="mu-big" onclick="togglePiano()">${pianoOn?'❚❚  Pause':'▶  Play'}</button>`;
+  } else {
+    if(MS.tracks.length){
+      html+=`
+        <div class="mu-toggles">
+          <button class="mu-tog${MS.shuffle?' on':''}" onclick="toggleShuffle()">🔀 Shuffle</button>
+          <button class="mu-tog${MS.loop?' on':''}" onclick="toggleLoop()">🔁 Loop</button>
+        </div>
+        <button class="mu-big" onclick="togglePlaylist()">${MS.playing?'❚❚  Pause':'▶  Play'}</button>
+        <div class="mu-list">`+
+        MS.tracks.map(t=>{
+          const cur = MS.playing && MS.tracks[MS.order[MS.pos]] &&
+                      MS.tracks[MS.order[MS.pos]].id===t.id;
+          return `<div class="mu-track${cur?' cur':''}">
+            <span class="mu-tn">${cur?'♪ ':''}${escapeHtml(t.name)}</span>
+            <button class="mu-del" onclick="delTrack('${t.id}')">✕</button>
+          </div>`;
+        }).join('')+
+        `</div>`;
+    } else {
+      html+=`<p class="mu-desc">Add audio files from your device to build a playlist you can shuffle and loop. Stored on this device only.</p>`;
+    }
+    html+=`<button class="mu-add" onclick="addTracks()">＋ Add Audio Files</button>`;
+  }
+  el.innerHTML=html;
+}
+
+function openMusicPanel(){
+  renderMusicPanel();
+  document.getElementById('muo').classList.add('vis');
+}
+document.getElementById('mb').addEventListener('click', openMusicPanel);
+document.getElementById('muc').addEventListener('click',()=>document.getElementById('muo').classList.remove('vis'));
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 function init(){
@@ -797,6 +1214,7 @@ function init(){
   document.getElementById('greeting').textContent = greeting();
   initStars();
   renderHand();
+  loadMusic();
 }
 init();
 </script>

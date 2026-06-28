@@ -48,7 +48,7 @@ body{
   height:100vh;height:100dvh;
   display:flex;flex-direction:column;align-items:center;
   padding-top:env(safe-area-inset-top,0);
-  padding-bottom:env(safe-area-inset-bottom,0);
+  padding-bottom:0;   /* let cards bleed to the true physical bottom edge */
 }
 
 /* ── Header ── */
@@ -79,7 +79,7 @@ body{
 }
 
 .cw{
-  position:absolute;left:50%;bottom:6px;
+  position:absolute;left:50%;bottom:-70px;
   cursor:pointer;
   transform-origin:center bottom;
   will-change:transform,opacity;

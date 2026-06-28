@@ -93,7 +93,7 @@ body{
   border-radius:18px;overflow:hidden;
   display:flex;flex-direction:column;
   background:var(--cc);
-  border:2.5px solid var(--cc);
+  border:4px solid var(--cc);
   box-shadow:0 18px 44px rgba(0,0,0,.55);
   user-select:none;
 }
@@ -380,10 +380,15 @@ body{
 }
 .mu-pill.on{color:var(--navy);background:var(--gold);border-color:var(--gold);font-weight:bold;}
 .mu-desc{font-size:13px;color:var(--muted);font-style:italic;line-height:1.6;margin-bottom:16px;text-align:center;}
+.mu-controls{display:flex;gap:10px;margin-bottom:16px;}
 .mu-big{
-  width:100%;padding:15px;border-radius:12px;border:none;
+  flex:1;padding:15px;border-radius:12px;border:none;
   background:var(--gold);color:var(--navy);font-weight:bold;
-  font-size:17px;font-family:Georgia,serif;cursor:pointer;margin-bottom:16px;
+  font-size:17px;font-family:Georgia,serif;cursor:pointer;
+}
+.mu-skip{
+  width:54px;flex-shrink:0;border-radius:12px;border:1.5px solid var(--gold-dim);
+  background:rgba(240,215,154,.12);color:var(--gold);font-size:20px;cursor:pointer;
 }
 .mu-toggles{display:flex;gap:10px;margin-bottom:14px;}
 .mu-tog{
@@ -400,8 +405,9 @@ body{
 .mu-track.cur .mu-tn{color:var(--gold);}
 .mu-tn{flex:1;font-size:14px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .mu-del{
-  background:rgba(255,255,255,.08);border:none;color:#ff9a9a;
-  width:28px;height:28px;border-radius:50%;font-size:13px;cursor:pointer;flex-shrink:0;
+  background:rgba(255,154,154,.14);border:1px solid rgba(255,154,154,.4);color:#ff9a9a;
+  width:36px;height:36px;border-radius:9px;font-size:16px;cursor:pointer;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
 }
 .mu-add{
   width:100%;padding:13px;border-radius:10px;
@@ -1043,12 +1049,17 @@ function initStars(){
   let stars = [], shooting = [], W=0, H=0;
 
   function build(){
-    W = canvas.offsetWidth; H = canvas.offsetHeight;
+    // Paint the full device screen so nothing is cut off at the bottom,
+    // even behind Safari's toolbar (full bleed in standalone / Home Screen mode).
+    W = window.innerWidth;
+    H = Math.max(window.innerHeight, document.documentElement.clientHeight, window.screen.height||0);
+    canvas.style.width = W+'px';
+    canvas.style.height = H+'px';
     const dpr = Math.min(window.devicePixelRatio||1, 2);
     canvas.width = Math.round(W*dpr);
     canvas.height = Math.round(H*dpr);
     ctx.setTransform(dpr,0,0,dpr,0,0);
-    const count = Math.min(460, Math.round(W*H/6000));
+    const count = Math.min(520, Math.round(W*H/6000));
     stars = Array.from({length:count},()=>({
       x:Math.random()*W,
       y:Math.random()*H,
@@ -1060,6 +1071,8 @@ function initStars(){
   }
   build();
   window.addEventListener('resize', build);
+  window.addEventListener('orientationchange', ()=>setTimeout(build,300));
+  setTimeout(build, 600);   // re-measure after iOS settles the viewport
 
   let t=0;
   (function tick(){
@@ -1093,88 +1106,8 @@ function initStars(){
   })();
 }
 
-// ─── Music: ambient piano (generated) ─────────────────────────────────────────
-let actx=null, master=null, reverb=null, pianoOn=false, musicTimer=null, patIdx=0;
-
-const PENTA = [130.81,146.83,164.81,196.00,220.00,261.63,293.66,329.63,392.00,440.00];
-const BASS  = [65.41,73.42,82.41,98.00,110.00];
-
-function initAudio(){
-  if(actx) return;
-  actx = new (window.AudioContext||window.webkitAudioContext)();
-  master = actx.createGain(); master.gain.value=0.30; master.connect(actx.destination);
-  const d1=actx.createDelay(2); d1.delayTime.value=0.22;
-  const d2=actx.createDelay(2); d2.delayTime.value=0.38;
-  const fb=actx.createGain(); fb.gain.value=0.22;
-  const mix=actx.createGain(); mix.gain.value=0.28;
-  d1.connect(fb); d2.connect(fb); fb.connect(d1); fb.connect(d2);
-  d1.connect(mix); d2.connect(mix); mix.connect(master);
-  reverb = d1;
-}
-function note(freq, when, dur, vol){
-  const o=actx.createOscillator(), g=actx.createGain();
-  const o2=actx.createOscillator(), g2=actx.createGain();
-  o.type='triangle'; o.frequency.value=freq;
-  o2.type='sine'; o2.frequency.value=freq*2; g2.gain.value=0.1;
-  o2.connect(g2); g2.connect(g);
-  g.gain.setValueAtTime(0.001,when);
-  g.gain.linearRampToValueAtTime(vol,when+0.018);
-  g.gain.exponentialRampToValueAtTime(vol*0.45,when+0.22);
-  g.gain.exponentialRampToValueAtTime(0.001,when+dur+0.45);
-  o.connect(g); g.connect(master); g.connect(reverb);
-  o.start(when); o.stop(when+dur+0.6);
-  o2.start(when); o2.stop(when+dur+0.6);
-}
-const MPATS = [
-  [0,2,4,2,4,5,4,2, 0,4,2,0],
-  [7,5,4,2,4,5,7,5, 4,2,0,2],
-  [0,2,4,7,5,4,2,4, 0,2,4,2],
-  [4,5,7,5,4,2,4,2, 0,2,0,2],
-  [2,4,5,4,2,0,2,4, 5,7,5,4],
-];
-const BPATS = [
-  [0,2,0,2, 0,4,0,4],
-  [0,0,2,0, 0,2,0,0],
-  [2,0,2,4, 2,0,2,0],
-];
-function scheduleLoop(startT){
-  if(!pianoOn) return;
-  const mp = MPATS[patIdx % MPATS.length];
-  const bp = BPATS[patIdx % BPATS.length];
-  patIdx++;
-  const beat=0.52, total=mp.length*beat;
-  mp.forEach((ni,i)=>{
-    if(Math.random()<0.1) return;
-    note(PENTA[ni], startT+i*beat, beat*.88, 0.28+Math.random()*.08);
-  });
-  bp.forEach((ni,i)=>{
-    note(BASS[ni], startT+i*beat*2, beat*1.7, 0.12);
-  });
-  musicTimer = setTimeout(()=>scheduleLoop(actx.currentTime+0.08),(total-0.55)*1000);
-}
-function togglePiano(){
-  initAudio();
-  if(!pianoOn){
-    if(MS.playing){ MS.audio.pause(); MS.playing=false; }
-    pianoOn=true;
-    if(actx.state==='suspended') actx.resume();
-    master.gain.setValueAtTime(0.001,actx.currentTime);
-    master.gain.linearRampToValueAtTime(0.30,actx.currentTime+1.5);
-    scheduleLoop(actx.currentTime+0.1);
-  } else {
-    stopPiano();
-  }
-  updateMusicBtn(); renderMusicPanel();
-}
-function stopPiano(){
-  pianoOn=false;
-  clearTimeout(musicTimer);
-  if(master) master.gain.linearRampToValueAtTime(0.001,actx.currentTime+1.4);
-}
-
 // ─── Music: imported playlist (IndexedDB) ─────────────────────────────────────
 const MS = {
-  mode: localStorage.getItem('ourdays_music_mode') || 'piano',
   shuffle: localStorage.getItem('ourdays_music_shuffle')==='1',
   loop: localStorage.getItem('ourdays_music_loop')!=='0',
   tracks: [], order: [], pos: 0, url: null,
@@ -1183,7 +1116,6 @@ const MS = {
 MS.audio.preload='auto';
 
 function saveMSsettings(){
-  localStorage.setItem('ourdays_music_mode', MS.mode);
   localStorage.setItem('ourdays_music_shuffle', MS.shuffle?'1':'0');
   localStorage.setItem('ourdays_music_loop', MS.loop?'1':'0');
 }
@@ -1218,17 +1150,24 @@ function togglePlaylist(){
   if(MS.playing){
     MS.audio.pause(); MS.playing=false;
   } else {
-    if(pianoOn) stopPiano();
     if(MS.audio.src){ MS.audio.play(); MS.playing=true; }
     else { buildOrder(); playPos(0); }
   }
   updateMusicBtn(); renderMusicPanel();
 }
+function nextTrack(){
+  if(!MS.tracks.length) return;
+  if(MS.pos+1 < MS.order.length) playPos(MS.pos+1);
+  else { buildOrder(); playPos(0); }
+}
 function toggleShuffle(){ MS.shuffle=!MS.shuffle; saveMSsettings(); buildOrder(); renderMusicPanel(); }
 function toggleLoop(){ MS.loop=!MS.loop; saveMSsettings(); renderMusicPanel(); }
 function addTracks(){
   const inp=document.createElement('input');
-  inp.type='file'; inp.accept='audio/*'; inp.multiple=true; inp.style.display='none';
+  inp.type='file';
+  // Broad list so iOS Files shows m4a/aac/etc., not just what audio/* filters to
+  inp.accept='.m4a,.mp3,.aac,.wav,.aiff,.aif,.caf,.flac,.ogg,.oga,.opus,.weba,audio/*';
+  inp.multiple=true; inp.style.display='none';
   document.body.appendChild(inp);
   inp.addEventListener('change', async ()=>{
     for(const f of inp.files){
@@ -1255,49 +1194,38 @@ async function delTrack(id){
 async function loadMusic(){
   try{ MS.tracks = await idbGetAll('ourdays_music','tracks'); buildOrder(); }catch(_){}
 }
-function setMusicMode(m){
-  MS.mode=m; saveMSsettings();
-  if(m==='piano'){ if(MS.playing){ MS.audio.pause(); MS.playing=false; } }
-  else { if(pianoOn) stopPiano(); }
-  updateMusicBtn(); renderMusicPanel();
-}
 function updateMusicBtn(){
   const b=document.getElementById('mb');
-  const on = pianoOn || MS.playing;
-  b.classList.toggle('on', on);
-  b.textContent = on ? '♪' : '♩';
+  b.classList.toggle('on', MS.playing);
+  b.textContent = MS.playing ? '♪' : '♩';
 }
 function renderMusicPanel(){
   const el=document.getElementById('mul');
-  const pill=(m,label)=>`<button class="mu-pill${MS.mode===m?' on':''}" onclick="setMusicMode('${m}')">${label}</button>`;
-  let html=`<div class="mu-modes">${pill('piano','Ambient Piano')}${pill('playlist','My Playlist')}</div>`;
-  if(MS.mode==='piano'){
+  let html='';
+  if(MS.tracks.length){
     html+=`
-      <p class="mu-desc">A gentle, ever-changing pentatonic piano — generated live on the device. No files, no internet.</p>
-      <button class="mu-big" onclick="togglePiano()">${pianoOn?'❚❚  Pause':'▶  Play'}</button>`;
-  } else {
-    if(MS.tracks.length){
-      html+=`
-        <div class="mu-toggles">
-          <button class="mu-tog${MS.shuffle?' on':''}" onclick="toggleShuffle()">🔀 Shuffle</button>
-          <button class="mu-tog${MS.loop?' on':''}" onclick="toggleLoop()">🔁 Loop</button>
-        </div>
+      <div class="mu-toggles">
+        <button class="mu-tog${MS.shuffle?' on':''}" onclick="toggleShuffle()">🔀 Shuffle</button>
+        <button class="mu-tog${MS.loop?' on':''}" onclick="toggleLoop()">🔁 Loop</button>
+      </div>
+      <div class="mu-controls">
         <button class="mu-big" onclick="togglePlaylist()">${MS.playing?'❚❚  Pause':'▶  Play'}</button>
-        <div class="mu-list">`+
-        MS.tracks.map(t=>{
-          const cur = MS.playing && MS.tracks[MS.order[MS.pos]] &&
-                      MS.tracks[MS.order[MS.pos]].id===t.id;
-          return `<div class="mu-track${cur?' cur':''}">
-            <span class="mu-tn">${cur?'♪ ':''}${escapeHtml(t.name)}</span>
-            <button class="mu-del" onclick="delTrack('${t.id}')">✕</button>
-          </div>`;
-        }).join('')+
-        `</div>`;
-    } else {
-      html+=`<p class="mu-desc">Add audio files from your device to build a playlist you can shuffle and loop. Stored on this device only.</p>`;
-    }
-    html+=`<button class="mu-add" onclick="addTracks()">＋ Add Audio Files</button>`;
+        <button class="mu-skip" onclick="nextTrack()" aria-label="Next">⏭</button>
+      </div>
+      <div class="mu-list">`+
+      MS.tracks.map(t=>{
+        const cur = MS.playing && MS.tracks[MS.order[MS.pos]] &&
+                    MS.tracks[MS.order[MS.pos]].id===t.id;
+        return `<div class="mu-track${cur?' cur':''}">
+          <span class="mu-tn">${cur?'♪ ':''}${escapeHtml(t.name)}</span>
+          <button class="mu-del" onclick="delTrack('${t.id}')" aria-label="Remove">🗑</button>
+        </div>`;
+      }).join('')+
+      `</div>`;
+  } else {
+    html+=`<p class="mu-desc">Add audio files from your device to build a playlist you can shuffle and loop. Stored on this device only.</p>`;
   }
+  html+=`<button class="mu-add" onclick="addTracks()">＋ Add Audio Files</button>`;
   el.innerHTML=html;
 }
 function openMusicPanel(){

@@ -301,14 +301,51 @@ body{
   flex-shrink:0;
 }
 #hot{font-size:19px;color:var(--gold);flex:1;font-style:italic;}
-#hoc{
+#hoc,#hox{
   background:rgba(255,255,255,.1);border:none;color:#fff;
   width:34px;height:34px;border-radius:50%;
   font-size:16px;display:flex;align-items:center;justify-content:center;
-  cursor:pointer;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;flex-shrink:0;
 }
+#hox{color:var(--gold);font-size:18px;}
 
 #hl{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 18px 20px;}
+
+/* ── Export / backup overlay ── */
+#exo{
+  position:fixed;inset:0;z-index:320;
+  background:rgba(14,15,44,.96);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  display:flex;flex-direction:column;
+  transform:translateY(100%);
+  transition:transform .4s cubic-bezier(.16,1,.3,1);
+}
+#exo.vis{transform:translateY(0);}
+#exh{
+  padding:calc(env(safe-area-inset-top,16px) + 14px) 20px 14px;
+  display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+#ext{font-size:19px;color:var(--gold);flex:1;font-style:italic;}
+#exc{
+  background:rgba(255,255,255,.1);border:none;color:#fff;
+  width:34px;height:34px;border-radius:50%;
+  font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+#exl{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 16px 24px;}
+.ex-btn{
+  display:flex;flex-direction:column;align-items:flex-start;gap:3px;
+  width:100%;text-align:left;padding:15px 16px;margin-bottom:12px;
+  border:1.5px solid rgba(255,255,255,.15);border-radius:12px;
+  background:rgba(255,255,255,.05);color:var(--text);
+  font-family:Georgia,serif;cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.ex-btn b{font-size:15px;font-weight:bold;}
+.ex-btn small{font-size:12px;color:var(--muted);font-style:italic;}
+.ex-btn:active{background:rgba(255,255,255,.1);}
+.ex-btn[disabled]{opacity:.55;}
+.ex-btn.imp{border-style:dashed;margin-top:6px;}
+.ex-hint{font-size:12px;color:var(--muted);text-align:center;line-height:1.6;font-style:italic;padding:8px 6px 0;}
 
 .hd{margin-bottom:26px;}
 .hd-date{
@@ -536,9 +573,25 @@ body{
 <div id="ho">
   <div id="hoh">
     <span id="hot">Journal</span>
+    <button id="hox" aria-label="Export and backup">⤓</button>
     <button id="hoc" aria-label="Close">✕</button>
   </div>
   <div id="hl"></div>
+</div>
+
+<!-- Export / backup overlay -->
+<div id="exo">
+  <div id="exh">
+    <span id="ext">Export &amp; Backup</span>
+    <button id="exc" aria-label="Close">✕</button>
+  </div>
+  <div id="exl">
+    <button class="ex-btn" id="ex-json"><b>⬇︎ Full backup (.json)</b><small>Every note &amp; photo · re-importable to restore</small></button>
+    <button class="ex-btn" id="ex-html"><b>⬇︎ Readable journal (.html)</b><small>Formatted page with photos · print to PDF or share</small></button>
+    <button class="ex-btn" id="ex-zip"><b>⬇︎ Photos (.zip)</b><small>All pictures as separate image files</small></button>
+    <button class="ex-btn imp" id="ex-import"><b>⬆︎ Import a backup (.json)</b><small>Restore from a backup file · merges, never overwrites</small></button>
+    <p class="ex-hint">Everything is processed on this device — nothing is uploaded. On iPhone, the share sheet lets you save to Files, AirDrop, or Mail.</p>
+  </div>
 </div>
 
 <!-- Photo manager overlay -->
@@ -1380,6 +1433,176 @@ function openMusicPanel(){
 }
 document.getElementById('mb').addEventListener('click', openMusicPanel);
 document.getElementById('muc').addEventListener('click',()=>document.getElementById('muo').classList.remove('vis'));
+
+// ─── Export / Backup ──────────────────────────────────────────────────────────
+function dataURLToBytes(dataURL){
+  const b64 = dataURL.slice(dataURL.indexOf(',')+1);
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  return bytes;
+}
+async function blobToBytes(blob){ return new Uint8Array(await blob.arrayBuffer()); }
+function blobToDataURL(blob){
+  return new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.onerror=()=>r(null); fr.readAsDataURL(blob); });
+}
+function downloadFile(filename, blob){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=filename; a.style.display='none';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+}
+async function saveOrShare(filename, blob, mime){
+  try{
+    const file=new File([blob], filename, {type: mime||blob.type||'application/octet-stream'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:filename});
+      return;
+    }
+  }catch(e){
+    if(e && e.name==='AbortError') return;   // user dismissed the share sheet
+  }
+  downloadFile(filename, blob);
+}
+
+// Minimal store-only ZIP (no compression, no dependencies)
+const CRC_TABLE=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}return t;})();
+function crc32(bytes){let crc=0xFFFFFFFF;for(let i=0;i<bytes.length;i++)crc=(crc>>>8)^CRC_TABLE[(crc^bytes[i])&0xFF];return (crc^0xFFFFFFFF)>>>0;}
+function buildZip(files){
+  const u16=n=>[n&255,(n>>>8)&255];
+  const u32=n=>[n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255];
+  const enc=new TextEncoder();
+  const d=new Date();
+  const dosTime=((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1))&0xFFFF;
+  const dosDate=(((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate())&0xFFFF;
+  const parts=[], central=[]; let offset=0;
+  for(const f of files){
+    const name=Array.from(enc.encode(f.name));
+    const data=f.bytes, crc=crc32(data), sz=data.length;
+    const lh=Uint8Array.from([].concat(u32(0x04034b50),u16(20),u16(0),u16(0),u16(dosTime),u16(dosDate),u32(crc),u32(sz),u32(sz),u16(name.length),u16(0),name));
+    parts.push(lh, data);
+    central.push(Uint8Array.from([].concat(u32(0x02014b50),u16(20),u16(20),u16(0),u16(0),u16(dosTime),u16(dosDate),u32(crc),u32(sz),u32(sz),u16(name.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset),name)));
+    offset += lh.length + data.length;
+  }
+  let cdSize=0; central.forEach(c=>cdSize+=c.length);
+  const eocd=Uint8Array.from([].concat(u32(0x06054b50),u16(0),u16(0),u16(files.length),u16(files.length),u32(cdSize),u32(offset),u16(0)));
+  return new Blob([...parts,...central,eocd],{type:'application/zip'});
+}
+
+function collectNoteEntries(){
+  const out=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    const m=k && k.match(/^ourdays_([^_]+)_(\d{4}-\d{2}-\d{2})$/);
+    if(m) out.push({ person:m[1], date:m[2], notes:loadNotes(m[1],m[2]) });
+  }
+  return out;
+}
+
+async function exportJSON(){
+  const data={ app:'Our Days', version:1, exportedAt:new Date().toISOString(),
+    people:PEOPLE.map(p=>({id:p.id,name:p.name,relation:p.relation})),
+    notes:collectNoteEntries(), cardPhotos:{}, dayPhotos:[] };
+  PEOPLE.forEach(p=>{ const ph=loadPhoto(p.id); if(ph) data.cardPhotos[p.id]={dataUrl:ph, ts:loadPhotoTs(p.id)}; });
+  const dp=await idbGetAll('ourdays_pix','photos').catch(()=>[]);
+  for(const r of dp){ const d=await blobToDataURL(r.blob); if(d) data.dayPhotos.push({id:r.id,person:r.person,date:r.date,ts:r.ts,dataUrl:d}); }
+  await saveOrShare(`our-days-backup-${today()}.json`, new Blob([JSON.stringify(data)],{type:'application/json'}), 'application/json');
+}
+
+async function exportZIP(){
+  const files=[];
+  PEOPLE.forEach(p=>{ const ph=loadPhoto(p.id); if(ph) files.push({name:`${p.id}/card.jpg`, bytes:dataURLToBytes(ph)}); });
+  const dp=await idbGetAll('ourdays_pix','photos').catch(()=>[]);
+  const pad=n=>String(n).padStart(2,'0');
+  for(const r of dp){
+    const t=new Date(r.ts||Date.now());
+    const stamp=`${r.date}_${pad(t.getHours())}${pad(t.getMinutes())}${pad(t.getSeconds())}`;
+    files.push({name:`${r.person}/${stamp}_${String(r.id).slice(-4)}.jpg`, bytes: await blobToBytes(r.blob)});
+  }
+  if(!files.length){ alert('No photos to export yet.'); return; }
+  await saveOrShare('our-days-photos.zip', buildZip(files), 'application/zip');
+}
+
+async function exportHTML(){
+  const dp=await idbGetAll('ourdays_pix','photos').catch(()=>[]);
+  const pixData={}; for(const r of dp){ pixData[r.id]=await blobToDataURL(r.blob); }
+  const pixFor=(pid,date)=>dp.filter(r=>r.person===pid&&r.date===date).sort((a,b)=>a.ts-b.ts);
+  const order=allDates().slice().reverse();   // oldest → newest, reads like a story
+  let body='';
+  for(const date of order){
+    const entries=PEOPLE.map(p=>({p, notes:loadNotes(p.id,date).filter(n=>n.text&&n.text.trim()), pix:pixFor(p.id,date)})).filter(e=>e.notes.length||e.pix.length);
+    if(!entries.length) continue;
+    body+=`<section class="day"><h2>${fmtFull(date)}</h2>`;
+    for(const e of entries){
+      body+=`<div class="person"><h3>${escapeHtml(e.p.name)}</h3>`;
+      for(const n of e.notes) body+=`<div class="note"><div class="t">${fmtTime(n.ts)}${n.edited?' · edited':''}</div><p>${escapeHtml(n.text).replace(/\n/g,'<br>')}</p></div>`;
+      if(e.pix.length) body+=`<div class="pix">${e.pix.map(r=>`<figure><img src="${pixData[r.id]||''}"><figcaption>${fmtTime(r.ts)}</figcaption></figure>`).join('')}</div>`;
+      body+=`</div>`;
+    }
+    body+=`</section>`;
+  }
+  const family=PEOPLE.map(p=>{const ph=loadPhoto(p.id);return `<div class="fm">${ph?`<img src="${ph}">`:`<span class="fmi">${p.initial}</span>`}<div class="fmn">${escapeHtml(p.name)}<small>${escapeHtml(p.relation)}</small></div></div>`;}).join('');
+  const css=`*{box-sizing:border-box;margin:0;padding:0}body{font-family:Georgia,'Times New Roman',serif;color:#2b2740;background:#fbf6ea;line-height:1.6;padding-bottom:60px}header{text-align:center;padding:46px 20px 26px;background:linear-gradient(180deg,#efe6cf,#fbf6ea);border-bottom:1px solid #e3d8bd}.logo{font-size:40px;font-style:italic;color:#b8902f}.motto{font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:#8a7560;margin-top:6px}.ex{font-size:12px;color:#a8997e;margin-top:8px}.family{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;margin-top:24px}.fm{display:flex;flex-direction:column;align-items:center;gap:6px;width:92px}.fm img,.fmi{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #d9b46b}.fmi{display:flex;align-items:center;justify-content:center;background:#e6dcc4;font-size:26px;font-weight:bold;color:#7a5a2a}.fmn{font-size:13px;font-weight:bold;text-align:center}.fmn small{display:block;font-weight:normal;font-style:italic;color:#8a7560;font-size:11px}.day{max-width:680px;margin:34px auto 0;padding:0 22px}.day>h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#b8902f;border-bottom:1px solid #e3d8bd;padding-bottom:8px;margin-bottom:16px}.person{margin-bottom:22px}.person h3{font-size:18px;color:#3a3450;margin-bottom:8px}.note{margin-bottom:12px}.note .t{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#b8902f;margin-bottom:3px}.note p{font-size:16px;color:#403a55}.pix{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}.pix figure{margin:0}.pix img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;border:1px solid #e3d8bd}.pix figcaption{font-size:10px;color:#a8997e;text-align:center;margin-top:3px}.empty{text-align:center;color:#8a7560;font-style:italic;margin-top:40px}footer{text-align:center;color:#b0a890;font-style:italic;font-size:12px;margin-top:50px}@media print{header{background:none}body{background:#fff}}`;
+  const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Our Days — Journal</title><style>${css}</style></head><body><header><div class="logo">Our Days</div><div class="motto">Remember Always</div><div class="ex">Exported ${fmtFull(today())}</div><div class="family">${family}</div></header>${body||'<p class="empty">No entries yet.</p>'}<footer>Our Days · made with love</footer></body></html>`;
+  await saveOrShare(`our-days-journal-${today()}.html`, new Blob([html],{type:'text/html'}), 'text/html');
+}
+
+function importBackup(){
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='.json,application/json'; inp.style.display='none';
+  document.body.appendChild(inp);
+  inp.addEventListener('change', async ()=>{
+    const file=inp.files[0]; document.body.removeChild(inp);
+    if(!file) return;
+    let data;
+    try{ data=JSON.parse(await file.text()); }catch(_){ alert("That file isn't a valid Our Days backup."); return; }
+    if(!data || typeof data!=='object'){ alert("That file isn't a valid Our Days backup."); return; }
+    if(data.app!=='Our Days' && !confirm("This doesn't look like an Our Days backup. Import anyway?")) return;
+    let nNotes=0, nCard=0, nDay=0;
+    (data.notes||[]).forEach(entry=>{
+      if(!entry||!entry.person||!entry.date) return;
+      const cur=loadNotes(entry.person,entry.date);
+      const ids=new Set(cur.map(n=>n.id)); let changed=false;
+      (entry.notes||[]).forEach(n=>{ if(n&&n.text&&n.text.trim()&&!ids.has(n.id)){ cur.push(n); ids.add(n.id); nNotes++; changed=true; } });
+      if(changed){ cur.sort((a,b)=>(a.ts||0)-(b.ts||0)); saveNotes(entry.person,entry.date,cur); }
+    });
+    Object.entries(data.cardPhotos||{}).forEach(([pid,info])=>{
+      if(info&&info.dataUrl&&!loadPhoto(pid)){
+        localStorage.setItem(`ourdays_photo_${pid}`,info.dataUrl);
+        if(info.ts) localStorage.setItem(`ourdays_photo_${pid}_ts`,info.ts);
+        nCard++;
+      }
+    });
+    const existing=await idbGetAll('ourdays_pix','photos').catch(()=>[]);
+    const exIds=new Set(existing.map(r=>r.id));
+    for(const d of (data.dayPhotos||[])){
+      if(d&&d.id&&d.dataUrl&&!exIds.has(d.id)){
+        try{ const blob=await (await fetch(d.dataUrl)).blob(); await idbPut('ourdays_pix','photos',{id:d.id,person:d.person,date:d.date,ts:d.ts,blob}); nDay++; }catch(_){}
+      }
+    }
+    renderHand();
+    alert(`Imported ${nNotes} note(s), ${nCard} card photo(s), ${nDay} day photo(s).`);
+  });
+  inp.click();
+}
+
+document.getElementById('hox').addEventListener('click', ()=>document.getElementById('exo').classList.add('vis'));
+document.getElementById('exc').addEventListener('click', ()=>document.getElementById('exo').classList.remove('vis'));
+function wireExport(btnId, fn){
+  const btn=document.getElementById(btnId);
+  btn.addEventListener('click', async ()=>{
+    if(btn.dataset.busy) return;
+    btn.dataset.busy='1'; btn.disabled=true;
+    const label=btn.querySelector('b'); const orig=label.textContent; label.textContent='Preparing…';
+    try{ await fn(); }catch(e){ alert('Sorry, that export failed: '+((e&&e.message)||e)); }
+    label.textContent=orig; btn.disabled=false; delete btn.dataset.busy;
+  });
+}
+wireExport('ex-json', exportJSON);
+wireExport('ex-html', exportHTML);
+wireExport('ex-zip', exportZIP);
+document.getElementById('ex-import').addEventListener('click', importBackup);
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 function init(){

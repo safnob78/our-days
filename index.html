@@ -253,6 +253,7 @@ body{
   background:rgba(0,0,0,.55);color:#fff;border:none;font-size:12px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
 }
+.epx-t{font-size:9.5px;color:#a8997e;text-align:center;margin-top:4px;line-height:1.2;}
 #epix-add{
   margin-top:12px;width:100%;padding:11px;
   border:1.5px dashed var(--paper-line);border-radius:10px;background:transparent;
@@ -331,7 +332,9 @@ body{
 .he-time{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--gold);opacity:.85;margin-bottom:2px;}
 .he-t{font-size:14px;color:var(--muted);line-height:1.65;}
 .he-pix{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;}
-.he-pix img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;display:block;}
+.he-pixfig{margin:0;}
+.he-pixfig img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;display:block;}
+.he-pixfig figcaption{font-size:9px;color:var(--muted);text-align:center;margin-top:2px;line-height:1.2;}
 
 /* ── Photo manager overlay ── */
 #pmo{
@@ -998,7 +1001,7 @@ async function renderEditorPix(){
   const rows=await dayPhotosFor(activePerson.id, today());
   grid.innerHTML = rows.map(r=>{
     const url=URL.createObjectURL(r.blob); editorPixUrls.push(url);
-    return `<div class="epx"><img src="${url}" alt="day photo"><button class="epx-x" onclick="removeDayPhoto('${r.id}')">✕</button></div>`;
+    return `<div class="epx"><img src="${url}" alt="day photo"><button class="epx-x" onclick="removeDayPhoto('${r.id}')">✕</button><div class="epx-t">${r.ts?fmtTime(r.ts):''}</div></div>`;
   }).join('');
 }
 async function removeDayPhoto(id){
@@ -1059,7 +1062,7 @@ async function openHistory(){
               ${e.notes.map(n=>`<div class="he-note"><div class="he-time">${fmtTime(n.ts)}${n.edited?' · edited':''}</div><div class="he-t">${escapeHtml(n.text).replace(/\n/g,'<br>')}</div></div>`).join('')}
               ${e.pix.length?`<div class="he-pix">${e.pix.map(r=>{
                 const u=URL.createObjectURL(r.blob); historyPixUrls.push(u);
-                return `<img src="${u}" alt="day photo">`;
+                return `<figure class="he-pixfig"><img src="${u}" alt="day photo"><figcaption>${r.ts?fmtTime(r.ts):''}</figcaption></figure>`;
               }).join('')}</div>`:''}
             </div>
           </div>

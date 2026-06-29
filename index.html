@@ -213,7 +213,7 @@ body{
   padding-bottom:14px;border-bottom:1px solid var(--paper-line);
 }
 #eta{
-  width:100%;min-height:210px;
+  width:100%;min-height:160px;
   background:transparent;border:none;outline:none;
   font-family:Georgia,serif;font-size:16px;line-height:32px;
   color:var(--paper-ink);resize:none;
@@ -223,6 +223,25 @@ body{
   caret-color:#5a4a3a;
 }
 #eta::placeholder{color:#b0a890;font-style:italic;}
+
+/* Today's saved notes (timestamped, editable list) */
+#enotes:empty{display:none;}
+.enote{padding:11px 0;border-bottom:1px solid var(--paper-line);}
+.enote.editing{background:rgba(244,201,93,.16);border-radius:8px;padding:11px 10px;margin:0 -10px;}
+.enote-meta{font-size:11px;color:#a8997e;margin-bottom:4px;letter-spacing:.02em;}
+.enote-text{font-size:15px;color:var(--paper-ink);line-height:1.55;white-space:pre-wrap;word-wrap:break-word;}
+.enote-actions{margin-top:7px;display:flex;gap:18px;}
+.enote-actions button{
+  background:none;border:none;color:#8a7560;font-size:12px;font-family:Georgia,serif;
+  cursor:pointer;padding:0;text-decoration:underline;-webkit-tap-highlight-color:transparent;
+}
+.enote-actions button.del{color:#b0573a;}
+#enew{display:flex;align-items:center;justify-content:space-between;margin:14px 0 2px;}
+#enew-label{font-size:12px;color:#a8997e;font-style:italic;}
+#ecancel{
+  background:none;border:none;color:#b0573a;font-size:12px;font-family:Georgia,serif;
+  cursor:pointer;text-decoration:underline;display:none;-webkit-tap-highlight-color:transparent;
+}
 
 #enotepix{padding:8px 0 18px;}
 #epix-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
@@ -307,6 +326,9 @@ body{
 .he-dot img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
 .he-c{flex:1;min-width:0;}
 .he-n{font-size:13px;font-weight:bold;color:var(--text);margin-bottom:4px;}
+.he-note{margin-bottom:9px;}
+.he-note:last-child{margin-bottom:0;}
+.he-time{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--gold);opacity:.85;margin-bottom:2px;}
 .he-t{font-size:14px;color:var(--muted);line-height:1.65;}
 .he-pix{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;}
 .he-pix img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;display:block;}
@@ -489,7 +511,12 @@ body{
     </div>
     <div id="eb">
       <div id="epr"></div>
-      <textarea id="eta" rows="8" placeholder="Write here…"></textarea>
+      <div id="enotes"></div>
+      <div id="enew">
+        <span id="enew-label">Add a note</span>
+        <button id="ecancel">Cancel edit</button>
+      </div>
+      <textarea id="eta" rows="8" placeholder="Write a note…"></textarea>
       <div id="enotepix">
         <div id="epix-grid"></div>
         <button id="epix-add">＋ Add photos from the day</button>
@@ -574,13 +601,45 @@ const PEOPLE = [
 const SK = (id,date) => `ourdays_${id}_${date}`;
 const today = () => new Date().toISOString().split('T')[0];
 
-function load(id, date){ return localStorage.getItem(SK(id,date)) || ''; }
-function save(id, date, text){
-  if(text.trim()) localStorage.setItem(SK(id,date), text);
+// Notes: each day holds a timestamped list of note objects {id,text,ts,edited}.
+// Older entries were a single plain-text string — migrated on read.
+function noteUid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function loadNotes(id, date){
+  const raw = localStorage.getItem(SK(id,date));
+  if(!raw) return [];
+  try{
+    const v = JSON.parse(raw);
+    if(Array.isArray(v)) return v;
+  }catch(_){}
+  // legacy single-string note
+  return [{ id:'legacy', text:raw, ts:Date.parse(date+'T12:00:00'), edited:null }];
+}
+function saveNotes(id, date, arr){
+  const keep = (arr||[]).filter(n=>n.text && n.text.trim());
+  if(keep.length) localStorage.setItem(SK(id,date), JSON.stringify(keep));
   else localStorage.removeItem(SK(id,date));
 }
+function addNote(id, date, text){
+  const arr = loadNotes(id,date);
+  arr.push({ id:noteUid(), text:text, ts:Date.now(), edited:null });
+  saveNotes(id,date,arr);
+}
+function updateNote(id, date, noteId, text){
+  const arr = loadNotes(id,date);
+  const n = arr.find(x=>x.id===noteId);
+  if(n){ n.text=text; n.edited=Date.now(); saveNotes(id,date,arr); }
+}
+function deleteNote(id, date, noteId){
+  saveNotes(id, date, loadNotes(id,date).filter(x=>x.id!==noteId));
+}
+function hasNotes(id, date){ return loadNotes(id,date).some(n=>n.text && n.text.trim()); }
+
 function loadPhoto(id){ return localStorage.getItem(`ourdays_photo_${id}`) || ''; }
-function savePhoto(id, dataUrl){ localStorage.setItem(`ourdays_photo_${id}`, dataUrl); }
+function loadPhotoTs(id){ const t=localStorage.getItem(`ourdays_photo_${id}_ts`); return t?+t:null; }
+function savePhoto(id, dataUrl){
+  localStorage.setItem(`ourdays_photo_${id}`, dataUrl);
+  localStorage.setItem(`ourdays_photo_${id}_ts`, Date.now());
+}
 
 function allDates(){
   const s = new Set();
@@ -640,6 +699,12 @@ function fmtShort(iso){
   return new Date(iso+'T12:00:00').toLocaleDateString('en-US',
     {weekday:'long',month:'long',day:'numeric'});
 }
+function fmtTime(ts){
+  return new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+}
+function fmtDateTime(ts){
+  return new Date(ts).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+}
 
 // ─── Avatar helper (circular, for editor + history + photo mgr) ───────────────
 function avatarContent(person, el){
@@ -667,7 +732,7 @@ function renderHand(){
   const date = today();
 
   PEOPLE.forEach((p,i)=>{
-    const hasEntry = load(p.id, date).trim().length > 0;
+    const hasEntry = hasNotes(p.id, date);
     const photo = loadPhoto(p.id);
 
     const wrap = document.createElement('div');
@@ -765,7 +830,7 @@ function layout(progress){
 
 function updateHint(){
   const date = today();
-  const done = PEOPLE.filter(p=>load(p.id,date).trim()).length;
+  const done = PEOPLE.filter(p=>hasNotes(p.id,date)).length;
   const el = document.getElementById('hint');
   if(done===0){
     el.textContent='Swipe the cards · tap one to write today\'s note';
@@ -782,9 +847,11 @@ function updateHint(){
 // ─── Editor ──────────────────────────────────────────────────────────────────
 let activePerson = null;
 let editorPixUrls = [];
+let editingNoteId = null;
 
 function openEditor(person){
   activePerson = person;
+  editingNoteId = null;
   const date = today();
 
   const grad = person.grad;
@@ -795,9 +862,11 @@ function openEditor(person){
   document.getElementById('epn').textContent = person.name;
   document.getElementById('edl').textContent = fmtShort(date);
   document.getElementById('epr').textContent = person.prompt;
-  document.getElementById('eta').value = load(person.id, date);
+  document.getElementById('eta').value = '';
   document.getElementById('svb').style.background = person.color;
 
+  renderEditorNotes();
+  updateEditorMode();
   renderEditorPix();
   document.getElementById('eo').classList.add('vis');
   setTimeout(()=>document.getElementById('eta').focus(), 420);
@@ -809,7 +878,57 @@ function closeEditor(){
   document.getElementById('eta').blur();
   editorPixUrls.forEach(u=>URL.revokeObjectURL(u)); editorPixUrls=[];
   activePerson = null;
+  editingNoteId = null;
 }
+
+// Today's notes list (timestamped, tap to edit)
+function renderEditorNotes(){
+  const wrap = document.getElementById('enotes');
+  if(!activePerson){ wrap.innerHTML=''; return; }
+  const notes = loadNotes(activePerson.id, today());
+  wrap.innerHTML = notes.map(n=>`
+    <div class="enote${editingNoteId===n.id?' editing':''}">
+      <div class="enote-meta">${fmtTime(n.ts)}${n.edited?` · edited ${fmtTime(n.edited)}`:''}</div>
+      <div class="enote-text">${escapeHtml(n.text)}</div>
+      <div class="enote-actions">
+        <button onclick="startEditNote('${n.id}')">Edit</button>
+        <button class="del" onclick="deleteNoteUI('${n.id}')">Delete</button>
+      </div>
+    </div>`).join('');
+}
+function updateEditorMode(){
+  const editing = !!editingNoteId;
+  document.getElementById('svb').textContent = editing ? 'Save edit ✦' : 'Add note ✦';
+  document.getElementById('enew-label').textContent = editing ? 'Editing note' : 'Add a note';
+  document.getElementById('eta').placeholder = editing ? 'Edit this note…' : 'Write a note…';
+  document.getElementById('ecancel').style.display = editing ? 'block' : 'none';
+}
+function startEditNote(noteId){
+  if(!activePerson) return;
+  const n = loadNotes(activePerson.id, today()).find(x=>x.id===noteId);
+  if(!n) return;
+  editingNoteId = noteId;
+  const ta = document.getElementById('eta');
+  ta.value = n.text;
+  updateEditorMode();
+  renderEditorNotes();
+  ta.focus();
+}
+function cancelEdit(){
+  editingNoteId = null;
+  document.getElementById('eta').value = '';
+  updateEditorMode();
+  renderEditorNotes();
+}
+function deleteNoteUI(noteId){
+  if(!activePerson) return;
+  if(!confirm('Delete this note?')) return;
+  deleteNote(activePerson.id, today(), noteId);
+  if(editingNoteId===noteId) cancelEdit();
+  else renderEditorNotes();
+  renderHand();
+}
+document.getElementById('ecancel').addEventListener('click', cancelEdit);
 
 document.getElementById('xcb').addEventListener('click', closeEditor);
 document.getElementById('eo').addEventListener('click', e=>{
@@ -833,9 +952,20 @@ document.getElementById('eo').addEventListener('click', e=>{
 
 document.getElementById('svb').addEventListener('click',()=>{
   if(!activePerson) return;
-  save(activePerson.id, today(), document.getElementById('eta').value);
-  closeEditor();
+  const ta = document.getElementById('eta');
+  const text = ta.value;
+  if(!text.trim()){ ta.focus(); return; }
+  if(editingNoteId){
+    updateNote(activePerson.id, today(), editingNoteId, text);
+    editingNoteId = null;
+  } else {
+    addNote(activePerson.id, today(), text);
+  }
+  ta.value = '';
+  updateEditorMode();
+  renderEditorNotes();
   renderHand();
+  ta.focus();            // editor stays open so more notes can be added
 });
 
 // ─── Day photos (per person + date, stored in IndexedDB) ──────────────────────
@@ -911,8 +1041,8 @@ async function openHistory(){
   const pixFor = (pid,date) => allPix.filter(r=>r.person===pid && r.date===date).sort((a,b)=>a.ts-b.ts);
 
   hl.innerHTML = dates.map(date=>{
-    const entries = PEOPLE.map(p=>({p, text:load(p.id,date), pix:pixFor(p.id,date)}))
-                          .filter(e=>e.text.trim() || e.pix.length);
+    const entries = PEOPLE.map(p=>({p, notes:loadNotes(p.id,date).filter(n=>n.text&&n.text.trim()), pix:pixFor(p.id,date)}))
+                          .filter(e=>e.notes.length || e.pix.length);
     if(!entries.length) return '';
     return `
       <div class="hd">
@@ -926,7 +1056,7 @@ async function openHistory(){
             </div>
             <div class="he-c">
               <div class="he-n">${escapeHtml(e.p.name)}</div>
-              ${e.text.trim()?`<div class="he-t">${escapeHtml(e.text).replace(/\n/g,'<br>')}</div>`:''}
+              ${e.notes.map(n=>`<div class="he-note"><div class="he-time">${fmtTime(n.ts)}${n.edited?' · edited':''}</div><div class="he-t">${escapeHtml(n.text).replace(/\n/g,'<br>')}</div></div>`).join('')}
               ${e.pix.length?`<div class="he-pix">${e.pix.map(r=>{
                 const u=URL.createObjectURL(r.blob); historyPixUrls.push(u);
                 return `<img src="${u}" alt="day photo">`;
@@ -958,7 +1088,7 @@ function fillPhotoManager(){
         </div>
         <div class="pm-info">
           <div class="pm-name">${escapeHtml(p.name)}</div>
-          <div class="pm-sub">${photo ? 'Full-art photo saved' : 'No photo yet'}</div>
+          <div class="pm-sub">${photo ? (loadPhotoTs(p.id) ? 'Added '+fmtDateTime(loadPhotoTs(p.id)) : 'Photo saved') : 'No photo yet'}</div>
         </div>
         <button class="pm-btn" onclick="photoActions('${p.id}')">${photo ? 'Change' : 'Add Photo'}</button>
       </div>
@@ -1046,6 +1176,7 @@ async function pastePhoto(id){
 }
 function removePhoto(id){
   localStorage.removeItem(`ourdays_photo_${id}`);
+  localStorage.removeItem(`ourdays_photo_${id}_ts`);
   afterPhotoChange();
 }
 

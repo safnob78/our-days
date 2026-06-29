@@ -77,9 +77,11 @@ body{
    iOS's fixed; bottom:0 pins to the safe-area line, not the physical edge —
    which is why a top-anchored, full-pixel-height layer reaches the bottom but
    a bottom-anchored one does not. */
+/* absolute (NOT fixed): iOS clips fixed elements out of the home-indicator
+   safe-area strip, but absolute content inside #app paints all the way to the
+   physical bottom edge. */
 #hand{
-  position:fixed;left:0;right:0;
-  bottom:calc(-1 * env(safe-area-inset-bottom, 0px));  /* extend into the home-indicator strip to the true edge */
+  position:absolute;left:0;right:0;bottom:0;
   height:66vh;height:66dvh;
   z-index:2;
   touch-action:none;

@@ -27,7 +27,10 @@
 }
 
 html{background:var(--bg);}
-html,body{height:100%;overflow:hidden;}
+/* 100vh = the FULL physical screen on iOS standalone (956), whereas 100%/100dvh
+   resolve to the safe-area-reduced height (894) and clip content above the home
+   indicator. Clip against 100vh so content reaches the true bottom edge. */
+html,body{height:100vh;overflow:hidden;}
 
 body{
   background:var(--bg);
@@ -46,7 +49,7 @@ body{
 
 #app{
   position:relative;z-index:1;
-  height:100vh;height:100dvh;
+  height:100vh;   /* full physical screen (956) — NOT 100dvh (894, stops at safe line) */
   display:flex;flex-direction:column;align-items:center;
   padding-top:env(safe-area-inset-top,0);
   padding-bottom:0;   /* let cards bleed to the true physical bottom edge */

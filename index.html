@@ -1261,18 +1261,22 @@ function safeInset(side){
   const v = side==='top'||side==='bottom' ? d.offsetHeight : d.offsetWidth;
   d.remove(); return v;
 }
+function vhUnit(unit){
+  const d=document.createElement('div');
+  d.style.cssText=`position:fixed;top:0;left:0;width:1px;height:100${unit};visibility:hidden;`;
+  document.body.appendChild(d);
+  const v=d.offsetHeight; d.remove(); return v;
+}
 function updateDbg(){
   const el=document.getElementById('dbg'); if(!el) return;
   const h=document.getElementById('hand');
   const r=h?h.getBoundingClientRect():{height:0,bottom:0};
-  const de=document.documentElement;
-  const vv=window.visualViewport;
   el.textContent =
     `inner   ${window.innerWidth} x ${window.innerHeight}\n`+
-    `client  ${de.clientWidth} x ${de.clientHeight}\n`+
     `screen  ${screen.width} x ${screen.height}\n`+
-    `visualVP ${vv?Math.round(vv.width)+' x '+Math.round(vv.height):'n/a'}\n`+
     `safe T/B ${safeInset('top')} / ${safeInset('bottom')}\n`+
+    `svh ${vhUnit('svh')}  lvh ${vhUnit('lvh')}\n`+
+    `dvh ${vhUnit('dvh')}  vh ${vhUnit('vh')}\n`+
     `hand    h=${Math.round(r.height)}  bottom=${Math.round(r.bottom)}`;
 }
 

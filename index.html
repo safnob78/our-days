@@ -78,7 +78,9 @@ body{
    which is why a top-anchored, full-pixel-height layer reaches the bottom but
    a bottom-anchored one does not. */
 #hand{
-  position:fixed;top:0;left:0;width:100%;
+  position:fixed;left:0;right:0;
+  bottom:calc(-1 * env(safe-area-inset-bottom, 0px));  /* extend into the home-indicator strip to the true edge */
+  height:66vh;height:66dvh;
   z-index:2;
   touch-action:none;
   perspective:1400px;
@@ -1071,10 +1073,6 @@ function initStars(){
     H = Math.max(window.innerHeight, document.documentElement.clientHeight, window.screen.height||0);
     canvas.style.width = W+'px';
     canvas.style.height = H+'px';
-    // Anchor the card area to the exact same full-screen height so the cards'
-    // bottoms land on the true physical edge (not the short 100dvh/safe-area line).
-    const hand = document.getElementById('hand');
-    if(hand) hand.style.height = H+'px';
     const dpr = Math.min(window.devicePixelRatio||1, 2);
     canvas.width = Math.round(W*dpr);
     canvas.height = Math.round(H*dpr);

@@ -642,6 +642,30 @@ body{
   box-shadow:inset 0 0 30px rgba(240,215,154,.04);
   opacity:.5;transition:opacity .3s;
 }
+/* outline comes alive while a card is being dragged */
+@keyframes zonefizzle{
+  0%{ opacity:.85; box-shadow:0 0 6px rgba(240,215,154,.18),inset 0 0 18px rgba(240,215,154,.08); border-color:var(--gold-dim); }
+  50%{ opacity:1; box-shadow:0 0 26px rgba(240,215,154,.42),inset 0 0 30px rgba(240,215,154,.22); border-color:var(--gold); }
+  100%{ opacity:.85; box-shadow:0 0 6px rgba(240,215,154,.18),inset 0 0 18px rgba(240,215,154,.08); border-color:var(--gold-dim); }
+}
+#lz.hot{ opacity:1; animation:zonefizzle 1s ease-in-out infinite; }
+/* milky splash on a valid drop */
+@keyframes zonesplash{
+  0%{ box-shadow:0 0 0 0 rgba(243,233,207,.55),inset 0 0 0 rgba(243,233,207,0); border-color:var(--cream); }
+  45%{ box-shadow:0 0 44px 10px rgba(243,233,207,.5),inset 0 0 46px rgba(243,233,207,.4); border-color:var(--cream); }
+  100%{ box-shadow:0 0 0 0 rgba(243,233,207,0),inset 0 0 0 rgba(243,233,207,0); border-color:var(--gold-dim); }
+}
+#lz.splash{ opacity:1; animation:zonesplash .6s ease-out; }
+
+/* wobble while a card is held in the air */
+@keyframes cardwobble{
+  0%{ transform:rotate(-2.6deg) scale(1.03); }
+  25%{ transform:rotate(1.6deg) scale(1.05); }
+  50%{ transform:rotate(2.8deg) scale(1.03); }
+  75%{ transform:rotate(-1.4deg) scale(1.05); }
+  100%{ transform:rotate(-2.6deg) scale(1.03); }
+}
+#fcard.wobble{ animation:cardwobble .55s ease-in-out infinite; }
 
 /* ── Floating enlarged/dragged card ── */
 #fcard{
@@ -1127,14 +1151,15 @@ function layout(progress){
   });
 }
 
-// Drag / swipe handling with momentum
+// Drag handling: horizontal-dominant = page the fan; vertical (on a card) = pick it up
 (function(){
   const hand = document.getElementById('hand');
-  let dragging=false, startX=0, startY=0, base=0, moved=false, downIdx=-1;
+  let dragging=false, startX=0, startY=0, base=0, moved=false, downIdx=-1, mode=null;
   let lastX=0, lastT=0, vel=0;
 
   hand.addEventListener('pointerdown', e=>{
-    dragging=true; moved=false;
+    if(fcardActive) return;                 // an enlarged/dragged card is already up
+    dragging=true; moved=false; mode=null;
     startX=lastX=e.clientX; startY=e.clientY; base=activeIdx;
     lastT=performance.now(); vel=0;
     const c=e.target.closest('.cw'); downIdx = c?+c.dataset.i:-1;
@@ -1145,30 +1170,39 @@ function layout(progress){
   hand.addEventListener('pointermove', e=>{
     if(!dragging) return;
     const dx=e.clientX-startX, dy=e.clientY-startY;
-    if(Math.abs(dx)>5 || Math.abs(dy)>5) moved=true;
+    if(!moved && (Math.abs(dx)>5 || Math.abs(dy)>5)) moved=true;
     const now=performance.now(), dt=now-lastT;
-    if(dt>0) vel = (e.clientX-lastX)/dt;       // px per ms
+    if(dt>0) vel = (e.clientX-lastX)/dt;
     lastX=e.clientX; lastT=now;
-    let p = base - dx/STEP;
-    p = Math.max(0, Math.min(cards.length-1, p));
-    layout(p);
+    if(mode===null && moved){
+      if(Math.abs(dx) > Math.abs(dy)) mode='page';
+      else if(downIdx>=0){ mode='pickup'; startPickup(downIdx, e); }
+      else mode='page';
+    }
+    if(mode==='page'){
+      let p = Math.max(0, Math.min(cards.length-1, base - dx/STEP));
+      layout(p);
+    } else if(mode==='pickup'){
+      movePickup(e);
+    }
   });
 
   function end(e){
     if(!dragging) return;
     dragging=false; hand.classList.remove('drag');
+    if(mode==='pickup'){ endPickup(e); mode=null; return; }
     const dx=((e.clientX!=null)?e.clientX:startX)-startX;
     if(!moved){
       if(downIdx>=0){
         if(downIdx===activeIdx){ enlargeCard(PEOPLE[downIdx]); }   // tap center → enlarge to zone
         else { activeIdx=downIdx; layout(activeIdx); }              // tap side → bring to center
       }
-      return;
+      mode=null; return;
     }
     let p = base - dx/STEP;
     p -= (vel*PROJ)/STEP;                       // momentum from flick velocity
     activeIdx = Math.max(0, Math.min(cards.length-1, Math.round(p)));
-    layout(activeIdx);
+    layout(activeIdx); mode=null;
   }
   hand.addEventListener('pointerup', end);
   hand.addEventListener('pointercancel', end);
@@ -2288,12 +2322,21 @@ function positionLandingZone(){
   lz.style.width=r.width+'px'; lz.style.height=r.height+'px';
 }
 
-let fcardActive=false, fcardPerson=null;
+let fcardActive=false, fcardPerson=null, fcardMode=null;   // 'enlarged' | 'dragging'
 function sourceCardEl(person){ const i=PEOPLE.indexOf(person); return cards[i]?cards[i].querySelector('.ct'):null; }
+function buildFcardFront(person){
+  const fc=document.getElementById('fcard');
+  const photo=loadPhoto(person.id);
+  fc.className=(photo?'has-photo ':'')+(hasEntry(person.id,today())?'done':'');
+  fc.style.setProperty('--cc', person.band);
+  fc.innerHTML=cardFrontMarkup(person);
+  if(photo) fc.querySelector('.ct-art').style.backgroundImage=`url("${photo}")`;
+  return fc;
+}
 
 function enlargeCard(person){
   if(fcardActive) return;
-  fcardActive=true; fcardPerson=person;
+  fcardActive=true; fcardPerson=person; fcardMode='enlarged';
   const srcEl=sourceCardEl(person);
   const src=srcEl?srcEl.getBoundingClientRect():null;
   const zone=landingZoneRect();
@@ -2301,14 +2344,8 @@ function enlargeCard(person){
   const tH=tW*CARD_AR;
   const tLeft=zone.cx - tW/2, tTop=zone.cy - tH/2;
 
-  const fc=document.getElementById('fcard');
-  const photo=loadPhoto(person.id);
-  fc.className=(photo?'has-photo ':'')+(hasEntry(person.id,today())?'done':'');
-  fc.style.setProperty('--cc', person.band);
-  fc.innerHTML=cardFrontMarkup(person);
-  if(photo) fc.querySelector('.ct-art').style.backgroundImage=`url("${photo}")`;
-
-  // start at the carousel card's spot, then glide to the zone centre, enlarging
+  const fc=buildFcardFront(person);
+  fc.style.transform=''; fc.style.pointerEvents='';
   const s = src || {left:tLeft,top:tTop,width:tW,height:tH};
   fc.style.transition='none';
   fc.style.left=s.left+'px'; fc.style.top=s.top+'px'; fc.style.width=s.width+'px'; fc.style.height=s.height+'px';
@@ -2325,31 +2362,106 @@ function enlargeCard(person){
   x.style.top=(tTop+tH+16)+'px';
   setTimeout(()=>{ x.style.transition='opacity .3s'; x.style.opacity='1'; }, 320);
 }
-function closeFcard(){
-  if(!fcardActive) return;
-  const fc=document.getElementById('fcard'), x=document.getElementById('fcx');
+
+function snapBackToCarousel(fc, after){
   const srcEl=sourceCardEl(fcardPerson);
   const src=srcEl?srcEl.getBoundingClientRect():null;
-  x.style.display='none';
   if(src){
-    fc.style.transition='left .38s ease,top .38s ease,width .38s ease,height .38s ease';
+    fc.style.transition='left .36s ease,top .36s ease,width .36s ease,height .36s ease';
     fc.style.left=src.left+'px'; fc.style.top=src.top+'px'; fc.style.width=src.width+'px'; fc.style.height=src.height+'px';
-    setTimeout(()=>{ fc.style.display='none'; renderHandInstant(); }, 380);
-  } else { fc.style.display='none'; renderHandInstant(); }
-  fcardActive=false; fcardPerson=null;
+    setTimeout(()=>{ fc.style.display='none'; fc.style.pointerEvents=''; renderHandInstant(); if(after) after(); }, 360);
+  } else { fc.style.display='none'; fc.style.pointerEvents=''; renderHandInstant(); if(after) after(); }
+}
+function closeFcard(){
+  if(!fcardActive) return;
+  const fc=document.getElementById('fcard');
+  fc.classList.remove('wobble'); fc.style.transform='';
+  document.getElementById('fcx').style.display='none';
+  document.getElementById('lz').classList.remove('hot');
+  snapBackToCarousel(fc);
+  fcardActive=false; fcardPerson=null; fcardMode=null;
 }
 function openNotesSide(person){
-  // Pass 1: present the editor full-screen as the notes side
-  const fc=document.getElementById('fcard'), x=document.getElementById('fcx');
+  const fc=document.getElementById('fcard');
+  fc.classList.remove('wobble'); fc.style.transform='';
+  fc.style.display='none'; fc.style.pointerEvents='';
+  document.getElementById('fcx').style.display='none';
+  document.getElementById('lz').classList.remove('hot');
   const srcEl=sourceCardEl(person);
-  fc.style.display='none'; x.style.display='none';
   if(srcEl) srcEl.style.visibility='';
-  fcardActive=false; fcardPerson=null;
+  fcardActive=false; fcardPerson=null; fcardMode=null;
   openEditor(person);
   document.getElementById('ec').classList.add('full');
 }
+
+// ── Drag a carousel card up into the zone (pickup) ──
+let pickW=0, pickH=0;
+function startPickup(idx, e){
+  const person=PEOPLE[idx];
+  fcardActive=true; fcardMode='dragging'; fcardPerson=person;
+  const srcEl=sourceCardEl(person);
+  if(srcEl) srcEl.style.visibility='hidden';
+  pickW=Math.min(238, innerWidth*0.56); pickH=pickW*CARD_AR;
+  const fc=buildFcardFront(person);
+  fc.style.transition='none'; fc.style.transform='';
+  fc.style.width=pickW+'px'; fc.style.height=pickH+'px';
+  fc.style.pointerEvents='none'; fc.style.display='flex';
+  fc.classList.add('wobble');
+  movePickup(e);
+  document.getElementById('lz').classList.add('hot');
+}
+function movePickup(e){
+  const fc=document.getElementById('fcard');
+  fc.style.left=(e.clientX - pickW/2)+'px';
+  fc.style.top=(e.clientY - pickH*0.72)+'px';
+}
+function endPickup(e){
+  const fc=document.getElementById('fcard'), lz=document.getElementById('lz');
+  lz.classList.remove('hot');
+  fc.classList.remove('wobble'); fc.style.transform='';
+  const zone=landingZoneRect();
+  const cx=e.clientX, cy=e.clientY - pickH*0.22;
+  const inZone = cx>=zone.left && cx<=zone.left+zone.width && cy>=zone.top && cy<=zone.top+zone.height;
+  if(inZone){
+    lz.classList.add('splash');
+    setTimeout(()=>lz.classList.remove('splash'), 650);
+    const tW=Math.min(innerWidth*0.9, zone.width*1.32), tH=tW*CARD_AR;
+    fc.style.transition='left .26s ease,top .26s ease,width .26s ease,height .26s ease';
+    fc.style.left=(zone.cx-tW/2)+'px'; fc.style.top=(zone.cy-tH/2)+'px'; fc.style.width=tW+'px'; fc.style.height=tH+'px';
+    const person=fcardPerson;
+    setTimeout(()=>openNotesSide(person), 300);
+  } else {
+    snapBackToCarousel(fc);
+    fcardActive=false; fcardMode=null; fcardPerson=null;
+  }
+}
+
 document.getElementById('fcx').addEventListener('click', closeFcard);
-document.getElementById('fcard').addEventListener('click', ()=>{ if(fcardActive && fcardPerson) openNotesSide(fcardPerson); });
+
+// Tap / swipe-down on the ENLARGED (static) card
+(function(){
+  const fc=document.getElementById('fcard');
+  let y0=null,x0=null,moved=false;
+  fc.addEventListener('pointerdown', e=>{
+    if(!fcardActive || fcardMode!=='enlarged') return;
+    y0=e.clientY; x0=e.clientX; moved=false;
+    if(fc.setPointerCapture) try{fc.setPointerCapture(e.pointerId);}catch(_){}
+  });
+  fc.addEventListener('pointermove', e=>{
+    if(y0==null) return;
+    const dx=e.clientX-x0, dy=e.clientY-y0;
+    if(Math.abs(dx)>6||Math.abs(dy)>6) moved=true;
+    if(dy>0){ fc.style.transition='none'; fc.style.transform=`translateY(${(dy*0.55).toFixed(1)}px) scale(${(1-Math.min(dy/1400,0.08)).toFixed(3)})`; }
+  });
+  fc.addEventListener('pointerup', e=>{
+    if(y0==null) return;
+    const dx=e.clientX-x0, dy=e.clientY-y0; y0=null;
+    if(dy>70 && dy>Math.abs(dx)){ closeFcard(); }
+    else if(!moved){ if(fcardPerson) openNotesSide(fcardPerson); }
+    else { fc.style.transition='transform .2s ease'; fc.style.transform=''; }
+  });
+})();
+
 window.addEventListener('resize', ()=>{ positionLandingZone(); });
 
 // ─── Init ─────────────────────────────────────────────────────────────────────

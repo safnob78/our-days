@@ -634,6 +634,41 @@ body{
 }
 #hjb.vis{opacity:1;pointer-events:auto;transform:none;}
 
+/* ── Card landing zone (drop pad) ── */
+#lz{
+  position:fixed;z-index:1;pointer-events:none;
+  border:2px solid var(--gold-dim);border-radius:20px;
+  background:transparent;
+  box-shadow:inset 0 0 30px rgba(240,215,154,.04);
+  opacity:.5;transition:opacity .3s;
+}
+
+/* ── Floating enlarged/dragged card ── */
+#fcard{
+  position:fixed;z-index:98;display:none;
+  flex-direction:column;overflow:hidden;
+  border-radius:18px;border:4px solid var(--cc,#fff);background:var(--cc,#fff);
+  box-shadow:0 26px 64px rgba(0,0,0,.62);
+  will-change:left,top,width,height,transform;
+  -webkit-tap-highlight-color:transparent;cursor:pointer;
+}
+#fcard .ct-top{height:48px;font-size:22px;}
+#fcard .ct-init{font-size:132px;}
+#fcard .ct-rel{font-size:14px;}
+/* photo / done modifiers for the floating card (it isn't a .ct element) */
+#fcard.has-photo .ct-art{display:block;}
+#fcard.has-photo .ct-init{display:none;}
+#fcard.has-photo .ct-scrim{opacity:1;}
+#fcard.has-photo .ct-name,#fcard.has-photo .ct-rel{color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.55);}
+#fcard.done .ct-dot{display:block;}
+#fcx{
+  position:fixed;z-index:99;display:none;
+  width:46px;height:46px;border-radius:50%;
+  background:rgba(255,255,255,.14);border:1.5px solid rgba(255,255,255,.2);color:#fff;font-size:18px;
+  align-items:center;justify-content:center;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;backdrop-filter:blur(6px);
+}
+
 /* ── Photo lightbox (tap to zoom) ── */
 img.zoomable{cursor:zoom-in;}
 #lb{
@@ -837,6 +872,11 @@ img.zoomable{cursor:zoom-in;}
 
 <!-- Action sheet -->
 <div id="as"><div id="asc"></div></div>
+
+<!-- Card landing zone (drop pad) + floating enlarged/dragged card -->
+<div id="lz"></div>
+<div id="fcard"></div>
+<button id="fcx" aria-label="Back to cards">✕</button>
 
 <!-- Photo lightbox -->
 <div id="lb">
@@ -1059,6 +1099,7 @@ function renderHand(){
   if(activeIdx > cards.length-1) activeIdx = cards.length-1;
   layout(activeIdx);
   updateHint();
+  requestAnimationFrame(positionLandingZone);
 }
 
 function layout(progress){
@@ -1108,17 +1149,10 @@ function layout(progress){
     if(!dragging) return;
     dragging=false; hand.classList.remove('drag');
     const dx=((e.clientX!=null)?e.clientX:startX)-startX;
-    const dy=((e.clientY!=null)?e.clientY:startY)-startY;
-    // swipe UP on a card → full-screen flippable card
-    if(downIdx>=0 && dy<-55 && Math.abs(dy)>Math.abs(dx)*1.3){
-      if(downIdx!==activeIdx){ activeIdx=downIdx; layout(activeIdx); }
-      openFullCard(PEOPLE[downIdx]);
-      return;
-    }
     if(!moved){
       if(downIdx>=0){
-        if(downIdx===activeIdx){ openEditor(PEOPLE[downIdx]); }
-        else { activeIdx=downIdx; layout(activeIdx); }
+        if(downIdx===activeIdx){ enlargeCard(PEOPLE[downIdx]); }   // tap center → enlarge to zone
+        else { activeIdx=downIdx; layout(activeIdx); }              // tap side → bring to center
       }
       return;
     }
@@ -2214,6 +2248,101 @@ async function deleteVoice(id){
 }
 $('evoice-add').addEventListener('click', openVoicePanel);
 
+// ─── Landing zone + tap-to-enlarge floating card ───────────────────────────────
+const CARD_AR = 366/232;   // card height/width
+function cardFrontMarkup(person){
+  return `
+    <div class="ct-top">${escapeHtml(person.name)}</div>
+    <div class="ct-body">
+      <div class="ct-grad" style="background:${person.grad}"></div>
+      <div class="ct-art"></div>
+      <div class="ct-sheen"></div>
+      <div class="ct-init">${person.initial}</div>
+      <div class="ct-scrim"></div>
+      <div class="ct-rel">${escapeHtml(person.relation)}</div>
+      <div class="ct-dot"></div>
+    </div>`;
+}
+function landingZoneRect(){
+  const peb=document.getElementById('peb').getBoundingClientRect();
+  const cardR=cards[activeIdx]?cards[activeIdx].getBoundingClientRect():{top:innerHeight*0.62};
+  const gapTop=peb.bottom, gapBottom=cardR.top;
+  const midY=(gapTop+gapBottom)/2;
+  const size=Math.min(innerWidth*0.78, Math.max(140,(gapBottom-gapTop)-14));
+  return { left:(innerWidth-size)/2, top:midY-size/2, width:size, height:size, cx:innerWidth/2, cy:midY };
+}
+function positionLandingZone(){
+  const lz=document.getElementById('lz'); if(!lz) return;
+  const r=landingZoneRect();
+  lz.style.left=r.left+'px'; lz.style.top=r.top+'px';
+  lz.style.width=r.width+'px'; lz.style.height=r.height+'px';
+}
+
+let fcardActive=false, fcardPerson=null;
+function sourceCardEl(person){ const i=PEOPLE.indexOf(person); return cards[i]?cards[i].querySelector('.ct'):null; }
+
+function enlargeCard(person){
+  if(fcardActive) return;
+  fcardActive=true; fcardPerson=person;
+  const srcEl=sourceCardEl(person);
+  const src=srcEl?srcEl.getBoundingClientRect():null;
+  const zone=landingZoneRect();
+  const tW=Math.min(innerWidth*0.9, zone.width*1.32);
+  const tH=tW*CARD_AR;
+  const tLeft=zone.cx - tW/2, tTop=zone.cy - tH/2;
+
+  const fc=document.getElementById('fcard');
+  const photo=loadPhoto(person.id);
+  fc.className=(photo?'has-photo ':'')+(hasEntry(person.id,today())?'done':'');
+  fc.style.setProperty('--cc', person.band);
+  fc.innerHTML=cardFrontMarkup(person);
+  if(photo) fc.querySelector('.ct-art').style.backgroundImage=`url("${photo}")`;
+
+  // start at the carousel card's spot, then glide to the zone centre, enlarging
+  const s = src || {left:tLeft,top:tTop,width:tW,height:tH};
+  fc.style.transition='none';
+  fc.style.left=s.left+'px'; fc.style.top=s.top+'px'; fc.style.width=s.width+'px'; fc.style.height=s.height+'px';
+  fc.style.display='flex';
+  if(srcEl) srcEl.style.visibility='hidden';
+  requestAnimationFrame(()=>{
+    fc.style.transition='left .42s cubic-bezier(.2,.85,.25,1),top .42s cubic-bezier(.2,.85,.25,1),width .42s cubic-bezier(.2,.85,.25,1),height .42s cubic-bezier(.2,.85,.25,1)';
+    fc.style.left=tLeft+'px'; fc.style.top=tTop+'px'; fc.style.width=tW+'px'; fc.style.height=tH+'px';
+  });
+
+  const x=document.getElementById('fcx');
+  x.style.display='flex'; x.style.opacity='0';
+  x.style.left=(zone.cx-23)+'px';
+  x.style.top=(tTop+tH+16)+'px';
+  setTimeout(()=>{ x.style.transition='opacity .3s'; x.style.opacity='1'; }, 320);
+}
+function closeFcard(){
+  if(!fcardActive) return;
+  const fc=document.getElementById('fcard'), x=document.getElementById('fcx');
+  const srcEl=sourceCardEl(fcardPerson);
+  const src=srcEl?srcEl.getBoundingClientRect():null;
+  x.style.display='none';
+  if(src){
+    fc.style.transition='left .38s ease,top .38s ease,width .38s ease,height .38s ease';
+    fc.style.left=src.left+'px'; fc.style.top=src.top+'px'; fc.style.width=src.width+'px'; fc.style.height=src.height+'px';
+    const sEl=srcEl;
+    setTimeout(()=>{ fc.style.display='none'; if(sEl) sEl.style.visibility=''; }, 380);
+  } else { fc.style.display='none'; if(srcEl) srcEl.style.visibility=''; }
+  fcardActive=false; fcardPerson=null;
+}
+function openNotesSide(person){
+  // Pass 1: present the editor full-screen as the notes side
+  const fc=document.getElementById('fcard'), x=document.getElementById('fcx');
+  const srcEl=sourceCardEl(person);
+  fc.style.display='none'; x.style.display='none';
+  if(srcEl) srcEl.style.visibility='';
+  fcardActive=false; fcardPerson=null;
+  openEditor(person);
+  document.getElementById('ec').classList.add('full');
+}
+document.getElementById('fcx').addEventListener('click', closeFcard);
+document.getElementById('fcard').addEventListener('click', ()=>{ if(fcardActive && fcardPerson) openNotesSide(fcardPerson); });
+window.addEventListener('resize', ()=>{ positionLandingZone(); });
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 function init(){
   document.getElementById('date-label').textContent = fmtFull(today());
@@ -2221,6 +2350,7 @@ function init(){
   initStars();
   renderHand();
   loadMusic();
+  [300,800].forEach(t=>setTimeout(positionLandingZone,t));
   // rebuild voice "done" flags from storage, then refresh the dots
   idbGetAll('ourdays_voice','voice').then(list=>{
     if(!list || !list.length) return;

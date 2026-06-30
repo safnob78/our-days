@@ -260,6 +260,88 @@ body{
   color:#8a7560;font-family:Georgia,serif;font-size:13px;cursor:pointer;
 }
 
+/* Voice notes in the editor */
+#evoicewrap{padding:6px 0 18px;}
+#evoices:empty{display:none;}
+.evoice{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 0;border-bottom:1px solid var(--paper-line);
+}
+.evoice-play{
+  width:38px;height:38px;flex-shrink:0;border-radius:50%;border:none;
+  background:var(--navy);color:#fff;font-size:15px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.evoice-c{flex:1;min-width:0;}
+.evoice-t{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#b8902f;margin-bottom:2px;}
+.evoice-x{font-size:14px;color:var(--paper-ink);line-height:1.45;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.evoice-x.none{color:#b0a890;font-style:italic;}
+.evoice-del{
+  background:none;border:none;color:#b0573a;font-size:12px;font-family:Georgia,serif;
+  cursor:pointer;text-decoration:underline;flex-shrink:0;
+}
+#evoice-add{
+  margin-top:12px;width:100%;padding:11px;
+  border:1.5px dashed var(--paper-line);border-radius:10px;background:transparent;
+  color:#8a7560;font-family:Georgia,serif;font-size:13px;cursor:pointer;
+}
+
+/* Voice recording panel */
+#vr{
+  position:fixed;inset:0;z-index:460;
+  background:rgba(10,10,24,.92);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .3s;
+  padding:0 0 env(safe-area-inset-bottom,0);
+}
+#vr.vis{opacity:1;pointer-events:auto;}
+#vr-card{
+  width:100%;max-width:440px;background:var(--paper);
+  border-radius:22px 22px 0 0;padding:8px 20px 22px;
+  max-height:calc(100dvh - 40px);overflow-y:auto;
+}
+#vr-h{display:flex;align-items:center;padding:8px 0 6px;}
+#vr-title{flex:1;font-size:17px;font-weight:bold;color:var(--navy);}
+#vr-x{background:rgba(37,46,114,.14);border:none;color:var(--navy);width:32px;height:32px;border-radius:50%;font-size:15px;cursor:pointer;}
+#vr-stage{text-align:center;padding:14px 0 6px;}
+#vr-timer{font-size:30px;font-variant-numeric:tabular-nums;color:var(--paper-ink);font-family:ui-monospace,Menlo,monospace;}
+#vr-rec{
+  width:74px;height:74px;border-radius:50%;margin:12px auto 8px;
+  border:4px solid #d8c0c0;background:#fff;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+#vr-dot{width:30px;height:30px;border-radius:50%;background:#d0463c;transition:all .2s;}
+#vr.rec #vr-rec{border-color:#e8a0a0;}
+#vr.rec #vr-dot{width:24px;height:24px;border-radius:6px;}
+#vr-status{font-size:13px;color:#8a7560;font-style:italic;}
+#vr-audio{width:100%;margin:6px 0 4px;display:none;}
+#vr.has-audio #vr-audio{display:block;}
+#vr-tlabel{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#b8902f;margin:12px 0 5px;}
+#vr-trans{
+  width:100%;min-height:90px;background:#fff;border:1px solid var(--paper-line);
+  border-radius:10px;padding:10px 12px;font-family:Georgia,serif;font-size:15px;
+  line-height:1.5;color:var(--paper-ink);resize:vertical;outline:none;
+}
+#vr-note{font-size:11px;color:#b07a4a;font-style:italic;margin-top:6px;min-height:14px;}
+#vr-keep{display:flex;gap:18px;margin:14px 0 4px;}
+#vr-keep label{font-size:13px;color:var(--paper-ink);display:flex;align-items:center;gap:6px;cursor:pointer;}
+#vr-keep input{width:17px;height:17px;accent-color:var(--navy);}
+#vr-actions{display:flex;gap:10px;margin-top:16px;}
+#vr-discard{
+  padding:13px 16px;border:1.5px solid var(--paper-line);border-radius:10px;background:transparent;
+  color:#b0573a;font-family:Georgia,serif;font-size:14px;cursor:pointer;
+}
+#vr-save{
+  flex:1;padding:13px;border:none;border-radius:10px;background:var(--navy);color:#fff;
+  font-family:Georgia,serif;font-size:15px;font-weight:bold;cursor:pointer;
+}
+#vr-save[disabled]{opacity:.5;}
+
+/* Voice entry in Past Entries */
+.he-voice{display:flex;flex-direction:column;gap:6px;margin-top:2px;}
+.he-voice audio{width:100%;max-width:280px;height:38px;}
+
 #ef{
   background:var(--paper);
   padding:14px 18px 16px;
@@ -673,10 +755,38 @@ img.zoomable{cursor:zoom-in;}
         <div id="epix-grid"></div>
         <button id="epix-add">＋ Add photos from the day</button>
       </div>
+      <div id="evoicewrap">
+        <div id="evoices"></div>
+        <button id="evoice-add">🎙 Add a voice note</button>
+      </div>
     </div>
     <div id="ef">
       <button id="svb">Save ✦</button>
       <button id="hib">Past Entries</button>
+    </div>
+  </div>
+</div>
+
+<!-- Voice recording panel -->
+<div id="vr">
+  <div id="vr-card">
+    <div id="vr-h"><span id="vr-title">Voice note</span><button id="vr-x" aria-label="Close">✕</button></div>
+    <div id="vr-stage">
+      <div id="vr-timer">0:00</div>
+      <button id="vr-rec" aria-label="Record"><span id="vr-dot"></span></button>
+      <div id="vr-status">Tap to start recording</div>
+    </div>
+    <audio id="vr-audio" controls></audio>
+    <div id="vr-tlabel">Transcript</div>
+    <textarea id="vr-trans" placeholder="Transcript appears here as you speak — you can edit it."></textarea>
+    <div id="vr-note"></div>
+    <div id="vr-keep">
+      <label><input type="checkbox" id="vr-keepaudio" checked> Keep recording</label>
+      <label><input type="checkbox" id="vr-keeptrans" checked> Keep transcript</label>
+    </div>
+    <div id="vr-actions">
+      <button id="vr-discard">Discard</button>
+      <button id="vr-save">Save voice note</button>
     </div>
   </div>
 </div>
@@ -701,7 +811,7 @@ img.zoomable{cursor:zoom-in;}
   <div id="exl">
     <button class="ex-btn" id="ex-json"><b>⬇︎ Full backup (.json)</b><small>Every note &amp; photo · re-importable to restore</small></button>
     <button class="ex-btn" id="ex-html"><b>⬇︎ Readable journal (.html)</b><small>Formatted page with photos · print to PDF or share</small></button>
-    <button class="ex-btn" id="ex-zip"><b>⬇︎ Photos (.zip)</b><small>All pictures as separate image files</small></button>
+    <button class="ex-btn" id="ex-zip"><b>⬇︎ Photos &amp; recordings (.zip)</b><small>Pictures and voice recordings as files</small></button>
     <button class="ex-btn imp" id="ex-import"><b>⬆︎ Import a backup (.json)</b><small>Restore from a backup file · merges, never overwrites</small></button>
     <p class="ex-hint">Everything is processed on this device — nothing is uploaded. On iPhone, the share sheet lets you save to Files, AirDrop, or Mail.</p>
   </div>
@@ -918,7 +1028,7 @@ function renderHand(){
   const date = today();
 
   PEOPLE.forEach((p,i)=>{
-    const hasEntry = hasNotes(p.id, date);
+    const hasEntry_ = hasEntry(p.id, date);
     const photo = loadPhoto(p.id);
 
     const wrap = document.createElement('div');
@@ -926,7 +1036,7 @@ function renderHand(){
     wrap.dataset.i = i;
 
     const card = document.createElement('div');
-    card.className='ct'+(hasEntry?' done':'')+(photo?' has-photo':'');
+    card.className='ct'+(hasEntry_?' done':'')+(photo?' has-photo':'');
     card.style.setProperty('--cc', p.band);
     card.innerHTML = `
       <div class="ct-top">${escapeHtml(p.name)}</div>
@@ -1023,7 +1133,7 @@ function layout(progress){
 
 function updateHint(){
   const date = today();
-  const done = PEOPLE.filter(p=>hasNotes(p.id,date)).length;
+  const done = PEOPLE.filter(p=>hasEntry(p.id,date)).length;
   const el = document.getElementById('hint');
   if(done===0){
     el.textContent='Swipe the cards · tap one to write today\'s note';
@@ -1061,6 +1171,7 @@ function openEditor(person){
   renderEditorNotes();
   updateEditorMode();
   renderEditorPix();
+  renderEditorVoices();
   document.getElementById('eo').classList.add('vis');
   setTimeout(()=>document.getElementById('eta').focus(), 420);
 }
@@ -1070,6 +1181,7 @@ function closeEditor(){
   document.getElementById('ec').classList.remove('full');
   document.getElementById('eta').blur();
   editorPixUrls.forEach(u=>URL.revokeObjectURL(u)); editorPixUrls=[];
+  editorVoiceUrls.forEach(u=>URL.revokeObjectURL(u)); editorVoiceUrls=[];
   activePerson = null;
   editingNoteId = null;
 }
@@ -1260,6 +1372,11 @@ async function openHistory(filterPerson){
       else { g={type:'photos', pid:r.person, date:r.date, ts, lastTs:ts, photos:[r]}; items.push(g); }
     });
   });
+  const allVoice = await idbGetAll('ourdays_voice','voice').catch(()=>[]);
+  allVoice.forEach(v=>{
+    if(filterPerson && v.person!==filterPerson) return;
+    items.push({type:'voice', pid:v.person, date:v.date, ts:v.ts||Date.parse(v.date+'T12:00:00'), voice:v});
+  });
 
   if(!items.length){
     hl.innerHTML=`<p style="color:var(--muted);padding:40px 24px;text-align:center;font-style:italic;">No entries yet${filterPerson?` for ${escapeHtml(personById(filterPerson).name)}`:''} — start writing today.</p>`;
@@ -1279,13 +1396,21 @@ async function openHistory(filterPerson){
         const p=personById(it.pid), ph=loadPhoto(it.pid);
         const av=`<div class="he-dot" style="background:${p.color}">${ph?`<img src="${ph}" alt="${escapeHtml(p.name)}" class="zoomable">`:escapeHtml(p.initial)}</div>`;
         const edited = (it.type==='note' && it.note.edited) ? ' · edited' : '';
-        const content = it.type==='note'
-          ? `<div class="he-t">${escapeHtml(it.note.text).replace(/\n/g,'<br>')}</div>`
-          : `<div class="he-pix">${it.photos.map(r=>{
-              const u=URL.createObjectURL(r.blob); historyPixUrls.push(u);
-              return `<figure class="he-pixfig"><img src="${u}" alt="day photo" class="zoomable"></figure>`;
-            }).join('')}</div>`;
-        return `<div class="he">${av}<div class="he-c"><div class="he-head"><span class="he-n">${escapeHtml(p.name)}</span><span class="he-time">${fmtTime(it.ts)}${edited}</span></div>${content}</div></div>`;
+        let content;
+        if(it.type==='note'){
+          content=`<div class="he-t">${escapeHtml(it.note.text).replace(/\n/g,'<br>')}</div>`;
+        } else if(it.type==='voice'){
+          const v=it.voice; let au='';
+          if(v.blob){ const u=URL.createObjectURL(v.blob); historyPixUrls.push(u); au=`<audio controls preload="none" src="${u}"></audio>`; }
+          content=`<div class="he-voice">${au}${v.transcript?`<div class="he-t">${escapeHtml(v.transcript).replace(/\n/g,'<br>')}</div>`:''}</div>`;
+        } else {
+          content=`<div class="he-pix">${it.photos.map(r=>{
+            const u=URL.createObjectURL(r.blob); historyPixUrls.push(u);
+            return `<figure class="he-pixfig"><img src="${u}" alt="day photo" class="zoomable"></figure>`;
+          }).join('')}</div>`;
+        }
+        const tag = it.type==='voice' ? ' 🎙' : '';
+        return `<div class="he">${av}<div class="he-c"><div class="he-head"><span class="he-n">${escapeHtml(p.name)}</span><span class="he-time">${fmtTime(it.ts)}${edited}${tag}</span></div>${content}</div></div>`;
       }).join('')
     }</div>`;
   }).join('');
@@ -1683,10 +1808,12 @@ function collectNoteEntries(){
 async function exportJSON(){
   const data={ app:'Our Days', version:1, exportedAt:new Date().toISOString(),
     people:PEOPLE.map(p=>({id:p.id,name:p.name,relation:p.relation})),
-    notes:collectNoteEntries(), cardPhotos:{}, dayPhotos:[] };
+    notes:collectNoteEntries(), cardPhotos:{}, dayPhotos:[], voice:[] };
   PEOPLE.forEach(p=>{ const ph=loadPhoto(p.id); if(ph) data.cardPhotos[p.id]={dataUrl:ph, ts:loadPhotoTs(p.id)}; });
   const dp=await idbGetAll('ourdays_pix','photos').catch(()=>[]);
   for(const r of dp){ const d=await blobToDataURL(r.blob); if(d) data.dayPhotos.push({id:r.id,person:r.person,date:r.date,ts:r.ts,dataUrl:d}); }
+  const vn=await idbGetAll('ourdays_voice','voice').catch(()=>[]);
+  for(const r of vn){ const d=r.blob?await blobToDataURL(r.blob):null; data.voice.push({id:r.id,person:r.person,date:r.date,ts:r.ts,transcript:r.transcript||'',mime:r.mime||'',dataUrl:d}); }
   await saveOrShare(`our-days-backup-${today()}.json`, new Blob([JSON.stringify(data)],{type:'application/json'}), 'application/json');
 }
 
@@ -1700,30 +1827,42 @@ async function exportZIP(){
     const stamp=`${r.date}_${pad(t.getHours())}${pad(t.getMinutes())}${pad(t.getSeconds())}`;
     files.push({name:`${r.person}/${stamp}_${String(r.id).slice(-4)}.jpg`, bytes: await blobToBytes(r.blob)});
   }
-  if(!files.length){ alert('No photos to export yet.'); return; }
-  await saveOrShare('our-days-photos.zip', buildZip(files), 'application/zip');
+  const vn=await idbGetAll('ourdays_voice','voice').catch(()=>[]);
+  for(const r of vn){
+    if(!r.blob) continue;
+    const t=new Date(r.ts||Date.now());
+    const stamp=`${r.date}_${pad(t.getHours())}${pad(t.getMinutes())}${pad(t.getSeconds())}`;
+    const ext=(r.mime||'').indexOf('webm')>=0?'webm':'m4a';
+    files.push({name:`${r.person}/voice/${stamp}_${String(r.id).slice(-4)}.${ext}`, bytes: await blobToBytes(r.blob)});
+  }
+  if(!files.length){ alert('No photos or recordings to export yet.'); return; }
+  await saveOrShare('our-days-media.zip', buildZip(files), 'application/zip');
 }
 
 async function exportHTML(){
   const dp=await idbGetAll('ourdays_pix','photos').catch(()=>[]);
   const pixData={}; for(const r of dp){ pixData[r.id]=await blobToDataURL(r.blob); }
   const pixFor=(pid,date)=>dp.filter(r=>r.person===pid&&r.date===date).sort((a,b)=>a.ts-b.ts);
+  const vn=await idbGetAll('ourdays_voice','voice').catch(()=>[]);
+  const vData={}; for(const r of vn){ vData[r.id]= r.blob?await blobToDataURL(r.blob):null; }
+  const voiceFor=(pid,date)=>vn.filter(r=>r.person===pid&&r.date===date).sort((a,b)=>a.ts-b.ts);
   const order=allDates().slice().reverse();   // oldest → newest, reads like a story
   let body='';
   for(const date of order){
-    const entries=PEOPLE.map(p=>({p, notes:loadNotes(p.id,date).filter(n=>n.text&&n.text.trim()), pix:pixFor(p.id,date)})).filter(e=>e.notes.length||e.pix.length);
+    const entries=PEOPLE.map(p=>({p, notes:loadNotes(p.id,date).filter(n=>n.text&&n.text.trim()), pix:pixFor(p.id,date), voice:voiceFor(p.id,date)})).filter(e=>e.notes.length||e.pix.length||e.voice.length);
     if(!entries.length) continue;
     body+=`<section class="day"><h2>${fmtFull(date)}</h2>`;
     for(const e of entries){
       body+=`<div class="person"><h3>${escapeHtml(e.p.name)}</h3>`;
       for(const n of e.notes) body+=`<div class="note"><div class="t">${fmtTime(n.ts)}${n.edited?' · edited':''}</div><p>${escapeHtml(n.text).replace(/\n/g,'<br>')}</p></div>`;
+      for(const v of e.voice) body+=`<div class="note"><div class="t">${fmtTime(v.ts)} · 🎙 voice note</div>${v.transcript?`<p>${escapeHtml(v.transcript).replace(/\n/g,'<br>')}</p>`:''}${vData[v.id]?`<audio controls src="${vData[v.id]}"></audio>`:''}</div>`;
       if(e.pix.length) body+=`<div class="pix">${e.pix.map(r=>`<figure><img src="${pixData[r.id]||''}"><figcaption>${fmtTime(r.ts)}</figcaption></figure>`).join('')}</div>`;
       body+=`</div>`;
     }
     body+=`</section>`;
   }
   const family=PEOPLE.map(p=>{const ph=loadPhoto(p.id);return `<div class="fm">${ph?`<img src="${ph}">`:`<span class="fmi">${p.initial}</span>`}<div class="fmn">${escapeHtml(p.name)}<small>${escapeHtml(p.relation)}</small></div></div>`;}).join('');
-  const css=`*{box-sizing:border-box;margin:0;padding:0}body{font-family:Georgia,'Times New Roman',serif;color:#2b2740;background:#fbf6ea;line-height:1.6;padding-bottom:60px}header{text-align:center;padding:46px 20px 26px;background:linear-gradient(180deg,#efe6cf,#fbf6ea);border-bottom:1px solid #e3d8bd}.logo{font-size:40px;font-style:italic;color:#b8902f}.motto{font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:#8a7560;margin-top:6px}.ex{font-size:12px;color:#a8997e;margin-top:8px}.family{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;margin-top:24px}.fm{display:flex;flex-direction:column;align-items:center;gap:6px;width:92px}.fm img,.fmi{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #d9b46b}.fmi{display:flex;align-items:center;justify-content:center;background:#e6dcc4;font-size:26px;font-weight:bold;color:#7a5a2a}.fmn{font-size:13px;font-weight:bold;text-align:center}.fmn small{display:block;font-weight:normal;font-style:italic;color:#8a7560;font-size:11px}.day{max-width:680px;margin:34px auto 0;padding:0 22px}.day>h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#b8902f;border-bottom:1px solid #e3d8bd;padding-bottom:8px;margin-bottom:16px}.person{margin-bottom:22px}.person h3{font-size:18px;color:#3a3450;margin-bottom:8px}.note{margin-bottom:12px}.note .t{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#b8902f;margin-bottom:3px}.note p{font-size:16px;color:#403a55}.pix{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}.pix figure{margin:0}.pix img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;border:1px solid #e3d8bd}.pix figcaption{font-size:10px;color:#a8997e;text-align:center;margin-top:3px}.empty{text-align:center;color:#8a7560;font-style:italic;margin-top:40px}footer{text-align:center;color:#b0a890;font-style:italic;font-size:12px;margin-top:50px}@media print{header{background:none}body{background:#fff}}`;
+  const css=`*{box-sizing:border-box;margin:0;padding:0}body{font-family:Georgia,'Times New Roman',serif;color:#2b2740;background:#fbf6ea;line-height:1.6;padding-bottom:60px}header{text-align:center;padding:46px 20px 26px;background:linear-gradient(180deg,#efe6cf,#fbf6ea);border-bottom:1px solid #e3d8bd}.logo{font-size:40px;font-style:italic;color:#b8902f}.motto{font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:#8a7560;margin-top:6px}.ex{font-size:12px;color:#a8997e;margin-top:8px}.family{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;margin-top:24px}.fm{display:flex;flex-direction:column;align-items:center;gap:6px;width:92px}.fm img,.fmi{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #d9b46b}.fmi{display:flex;align-items:center;justify-content:center;background:#e6dcc4;font-size:26px;font-weight:bold;color:#7a5a2a}.fmn{font-size:13px;font-weight:bold;text-align:center}.fmn small{display:block;font-weight:normal;font-style:italic;color:#8a7560;font-size:11px}.day{max-width:680px;margin:34px auto 0;padding:0 22px}.day>h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#b8902f;border-bottom:1px solid #e3d8bd;padding-bottom:8px;margin-bottom:16px}.person{margin-bottom:22px}.person h3{font-size:18px;color:#3a3450;margin-bottom:8px}.note{margin-bottom:12px}.note .t{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#b8902f;margin-bottom:3px}.note p{font-size:16px;color:#403a55}.note audio{width:100%;max-width:340px;margin-top:8px;display:block}.pix{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}.pix figure{margin:0}.pix img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;border:1px solid #e3d8bd}.pix figcaption{font-size:10px;color:#a8997e;text-align:center;margin-top:3px}.empty{text-align:center;color:#8a7560;font-style:italic;margin-top:40px}footer{text-align:center;color:#b0a890;font-style:italic;font-size:12px;margin-top:50px}@media print{header{background:none}body{background:#fff}}`;
   const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Our Days — Journal</title><style>${css}</style></head><body><header><div class="logo">Our Days</div><div class="motto">Remember Always</div><div class="ex">Exported ${fmtFull(today())}</div><div class="family">${family}</div></header>${body||'<p class="empty">No entries yet.</p>'}<footer>Our Days · made with love</footer></body></html>`;
   await saveOrShare(`our-days-journal-${today()}.html`, new Blob([html],{type:'text/html'}), 'text/html');
 }
@@ -1761,8 +1900,22 @@ function importBackup(){
         try{ const blob=await (await fetch(d.dataUrl)).blob(); await idbPut('ourdays_pix','photos',{id:d.id,person:d.person,date:d.date,ts:d.ts,blob}); nDay++; }catch(_){}
       }
     }
+    let nVoice=0;
+    const exV=await idbGetAll('ourdays_voice','voice').catch(()=>[]);
+    const exVIds=new Set(exV.map(r=>r.id));
+    const vDates=new Set();
+    for(const v of (data.voice||[])){
+      if(v&&v.id&&!exVIds.has(v.id)&&(v.dataUrl||v.transcript)){
+        try{
+          const blob=v.dataUrl?await (await fetch(v.dataUrl)).blob():null;
+          await idbPut('ourdays_voice','voice',{id:v.id,person:v.person,date:v.date,ts:v.ts,blob,mime:v.mime||'',transcript:v.transcript||''});
+          vDates.add(v.person+'|'+v.date); nVoice++;
+        }catch(_){}
+      }
+    }
+    for(const k of vDates){ const [pid,date]=k.split('|'); setVoiceFlag(pid,date,true); }
     renderHand();
-    alert(`Imported ${nNotes} note(s), ${nCard} card photo(s), ${nDay} day photo(s).`);
+    alert(`Imported ${nNotes} note(s), ${nCard} card photo(s), ${nDay} day photo(s), ${nVoice} voice note(s).`);
   });
   inp.click();
 }
@@ -1882,9 +2035,17 @@ async function openFullCard(person){
   fcPixUrls.forEach(u=>URL.revokeObjectURL(u)); fcPixUrls=[];
   const notes=loadNotes(person.id,date).filter(n=>n.text&&n.text.trim());
   const pix=await dayPhotosFor(person.id,date);
+  const voices=await voiceNotesFor(person.id,date);
+  const anything = notes.length||pix.length||voices.length;
   const notesHtml = notes.length
     ? notes.map(n=>`<div class="fc-note"><div class="fc-note-t">${fmtTime(n.ts)}${n.edited?' · edited':''}</div><div class="fc-note-x">${escapeHtml(n.text).replace(/\n/g,'<br>')}</div></div>`).join('')
-    : `<div class="fc-empty">No notes yet today.</div>`;
+    : (anything?'':`<div class="fc-empty">No notes yet today.</div>`);
+  const voiceHtml = voices.map(v=>{
+    let play='';
+    if(v.blob){ const u=URL.createObjectURL(v.blob); fcPixUrls.push(u); play=`<button class="evoice-play" onclick="playVoiceUrl('${u}')">▶</button>`; }
+    else play=`<button class="evoice-play" style="background:#b0a890" disabled>🎙</button>`;
+    return `<div class="evoice">${play}<div class="evoice-c"><div class="evoice-t">${fmtTime(v.ts)} · 🎙</div><div class="evoice-x${v.transcript?'':' none'}">${v.transcript?escapeHtml(v.transcript):'Voice recording'}</div></div></div>`;
+  }).join('');
   const pixHtml = pix.length
     ? `<div class="fc-pix">${pix.map(r=>{const u=URL.createObjectURL(r.blob);fcPixUrls.push(u);return `<img src="${u}" class="zoomable" alt="day photo">`;}).join('')}</div>`
     : '';
@@ -1898,6 +2059,7 @@ async function openFullCard(person){
     <div class="fc-back-body">
       <div class="fc-back-prompt">${escapeHtml(person.prompt)}</div>
       ${notesHtml}
+      ${voiceHtml}
       ${pixHtml}
       <button class="fc-edit">✎ Write / edit notes</button>
     </div>`;
@@ -1921,6 +2083,137 @@ document.getElementById('fc').addEventListener('click', e=>{
   if(e.target.closest('#fc-front')){ fc.classList.add('flipped'); return; }   // front → flip to notes
 });
 
+// ─── Voice notes (on-device recording + optional online transcript) ────────────
+function vflagKey(id,date){ return `ourdays_vflag_${id}_${date}`; }
+function hasVoice(id,date){ return localStorage.getItem(vflagKey(id,date))==='1'; }
+function setVoiceFlag(id,date,on){ if(on) localStorage.setItem(vflagKey(id,date),'1'); else localStorage.removeItem(vflagKey(id,date)); }
+function hasEntry(id,date){ return hasNotes(id,date) || hasVoice(id,date); }
+async function voiceNotesFor(person,date){
+  const all=await idbGetAll('ourdays_voice','voice').catch(()=>[]);
+  return all.filter(r=>r.person===person && r.date===date).sort((a,b)=>a.ts-b.ts);
+}
+async function refreshVoiceFlag(id,date){ setVoiceFlag(id,date,(await voiceNotesFor(id,date)).length>0); }
+
+const VR={ rec:null, stream:null, chunks:[], blob:null, mime:'', recog:null, finalT:'', recording:false, t0:0, timer:null, url:null, stopResolve:null };
+const $=id=>document.getElementById(id);
+function vrFmt(ms){ const s=Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+function vrReset(){
+  const v=$('vr'); v.classList.remove('rec','has-audio');
+  $('vr-timer').textContent='0:00'; $('vr-status').textContent='Tap to start recording';
+  $('vr-trans').value=''; $('vr-note').textContent='';
+  $('vr-keepaudio').checked=true; $('vr-keeptrans').checked=true;
+  if(VR.url){ URL.revokeObjectURL(VR.url); VR.url=null; }
+  $('vr-audio').removeAttribute('src');
+  VR.blob=null; VR.chunks=[]; VR.finalT=''; VR.recording=false;
+  clearInterval(VR.timer); VR.timer=null;
+}
+function openVoicePanel(){
+  if(!activePerson) return;
+  if(!navigator.mediaDevices || !window.MediaRecorder){ alert("Audio recording isn't supported in this browser."); return; }
+  vrReset(); $('vr').classList.add('vis');
+}
+function closeVoicePanel(){
+  if(VR.recording) stopRecording();
+  stopRecognition();
+  if(VR.stream){ VR.stream.getTracks().forEach(t=>t.stop()); VR.stream=null; }
+  $('vr').classList.remove('vis'); vrReset();
+}
+async function startRecording(){
+  try{ VR.stream=await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){ $('vr-status').textContent='Microphone permission denied.'; return; }
+  let mime='';
+  if(MediaRecorder.isTypeSupported('audio/mp4')) mime='audio/mp4';
+  else if(MediaRecorder.isTypeSupported('audio/webm')) mime='audio/webm';
+  try{ VR.rec = mime? new MediaRecorder(VR.stream,{mimeType:mime}) : new MediaRecorder(VR.stream); }
+  catch(_){ VR.rec=new MediaRecorder(VR.stream); }
+  VR.mime=VR.rec.mimeType||mime||'audio/mp4'; VR.chunks=[];
+  VR.rec.ondataavailable=e=>{ if(e.data&&e.data.size) VR.chunks.push(e.data); };
+  VR.rec.onstop=()=>{
+    VR.blob=new Blob(VR.chunks,{type:VR.mime});
+    if(VR.stream){ VR.stream.getTracks().forEach(t=>t.stop()); VR.stream=null; }
+    if(VR.url) URL.revokeObjectURL(VR.url);
+    VR.url=URL.createObjectURL(VR.blob);
+    $('vr-audio').src=VR.url; $('vr').classList.add('has-audio');
+    if(VR.stopResolve){ const r=VR.stopResolve; VR.stopResolve=null; r(); }
+  };
+  VR.rec.start(); VR.recording=true;
+  $('vr').classList.add('rec'); $('vr').classList.remove('has-audio');
+  $('vr-status').textContent='Recording… tap to stop';
+  VR.t0=Date.now(); VR.timer=setInterval(()=>{ $('vr-timer').textContent=vrFmt(Date.now()-VR.t0); },250);
+  startRecognition();
+}
+function stopRecording(){
+  return new Promise(res=>{
+    VR.recording=false; clearInterval(VR.timer); VR.timer=null;
+    $('vr').classList.remove('rec'); $('vr-status').textContent='Recorded · review below';
+    stopRecognition();
+    if(!VR.rec || VR.rec.state==='inactive'){ res(); return; }
+    VR.stopResolve=res;
+    try{ VR.rec.stop(); }catch(_){ if(VR.stopResolve){ VR.stopResolve=null; res(); } }
+  });
+}
+function startRecognition(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const ta=$('vr-trans'), note=$('vr-note');
+  if(!SR){ note.textContent='Auto-transcript unavailable here — type your note below.'; return; }
+  try{
+    VR.recog=new SR();
+    VR.recog.continuous=true; VR.recog.interimResults=true; VR.recog.lang='en-US';
+    VR.finalT = ta.value ? ta.value+' ' : '';
+    VR.recog.onresult=e=>{
+      let interim='';
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const t=e.results[i][0].transcript;
+        if(e.results[i].isFinal) VR.finalT+=t+' '; else interim+=t;
+      }
+      ta.value=(VR.finalT+interim).replace(/\s+/g,' ').replace(/^\s+/,'');
+    };
+    VR.recog.onerror=ev=>{ if(ev.error==='not-allowed'||ev.error==='service-not-allowed') note.textContent='Transcription blocked — type your note below.'; };
+    VR.recog.start();
+  }catch(_){ note.textContent='Auto-transcript unavailable — type your note below.'; }
+}
+function stopRecognition(){ if(VR.recog){ try{VR.recog.stop();}catch(_){}; VR.recog=null; } }
+
+$('vr-rec').addEventListener('click', async ()=>{ if(VR.recording) await stopRecording(); else startRecording(); });
+$('vr-x').addEventListener('click', closeVoicePanel);
+$('vr-discard').addEventListener('click', closeVoicePanel);
+$('vr-save').addEventListener('click', async ()=>{
+  if(VR.recording) await stopRecording();
+  const keepA=$('vr-keepaudio').checked, keepT=$('vr-keeptrans').checked;
+  const trans=$('vr-trans').value.trim();
+  const haveAudio=keepA&&VR.blob, haveTrans=keepT&&!!trans;
+  if(!haveAudio && !haveTrans){ alert('Nothing to save — record audio or keep a transcript.'); return; }
+  const person=activePerson.id, date=today();
+  const rec={ id:Date.now()+'_'+Math.random().toString(36).slice(2), person, date, ts:Date.now(),
+    blob: haveAudio?VR.blob:null, mime: haveAudio?VR.mime:'', transcript: haveTrans?trans:'' };
+  await idbPut('ourdays_voice','voice',rec).catch(()=>{});
+  setVoiceFlag(person,date,true);
+  closeVoicePanel(); renderEditorVoices(); renderHand();
+});
+
+let editorVoiceUrls=[];
+let voicePlayer=null;
+function playVoiceUrl(url){ if(voicePlayer) voicePlayer.pause(); voicePlayer=new Audio(url); voicePlayer.play().catch(()=>{}); }
+async function renderEditorVoices(){
+  const wrap=$('evoices');
+  editorVoiceUrls.forEach(u=>URL.revokeObjectURL(u)); editorVoiceUrls=[];
+  if(!activePerson){ wrap.innerHTML=''; return; }
+  const list=await voiceNotesFor(activePerson.id, today());
+  wrap.innerHTML=list.map(v=>{
+    let play;
+    if(v.blob){ const u=URL.createObjectURL(v.blob); editorVoiceUrls.push(u); play=`<button class="evoice-play" onclick="playVoiceUrl('${u}')">▶</button>`; }
+    else play=`<button class="evoice-play" style="background:#b0a890" disabled>🎙</button>`;
+    return `<div class="evoice">${play}<div class="evoice-c"><div class="evoice-t">${fmtTime(v.ts)}</div><div class="evoice-x${v.transcript?'':' none'}">${v.transcript?escapeHtml(v.transcript):'Voice recording'}</div></div><button class="evoice-del" onclick="deleteVoice('${v.id}')">Delete</button></div>`;
+  }).join('');
+}
+async function deleteVoice(id){
+  if(!confirm('Delete this voice note?')) return;
+  await idbDel('ourdays_voice','voice',id).catch(()=>{});
+  if(activePerson) await refreshVoiceFlag(activePerson.id, today());
+  renderEditorVoices(); renderHand();
+}
+$('evoice-add').addEventListener('click', openVoicePanel);
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 function init(){
   document.getElementById('date-label').textContent = fmtFull(today());
@@ -1928,6 +2221,13 @@ function init(){
   initStars();
   renderHand();
   loadMusic();
+  // rebuild voice "done" flags from storage, then refresh the dots
+  idbGetAll('ourdays_voice','voice').then(list=>{
+    if(!list || !list.length) return;
+    const seen=new Set();
+    list.forEach(v=>{ const k=v.person+'|'+v.date; if(!seen.has(k)){ seen.add(k); setVoiceFlag(v.person,v.date,true); } });
+    renderHand();
+  }).catch(()=>{});
 }
 init();
 </script>

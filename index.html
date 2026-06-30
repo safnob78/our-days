@@ -353,25 +353,24 @@ body{
   color:var(--gold);margin-bottom:10px;
   padding-bottom:6px;border-bottom:1px solid var(--gold-dim);
 }
-.he{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.05);}
+/* Each entry (note OR photo batch) is a self-contained row: avatar + name + time + content */
+.he{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid rgba(255,255,255,.06);}
 .he:last-child{border-bottom:none;}
 .he-dot{
-  width:34px;height:34px;border-radius:50%;
+  width:36px;height:36px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
-  font-size:15px;font-weight:bold;color:#fff;flex-shrink:0;margin-top:2px;
+  font-size:16px;font-weight:bold;color:#fff;flex-shrink:0;margin-top:1px;
   overflow:hidden;
 }
 .he-dot img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
 .he-c{flex:1;min-width:0;}
-.he-n{font-size:13px;font-weight:bold;color:var(--text);margin-bottom:4px;}
-.he-note{margin-bottom:9px;}
-.he-note:last-child{margin-bottom:0;}
-.he-time{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--gold);opacity:.85;margin-bottom:2px;}
-.he-t{font-size:14px;color:var(--muted);line-height:1.65;}
-.he-pix{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;}
+.he-head{display:flex;align-items:baseline;gap:8px;margin-bottom:5px;}
+.he-n{font-size:14px;font-weight:bold;color:var(--text);}
+.he-time{font-size:11px;letter-spacing:.04em;color:var(--gold);opacity:.85;white-space:nowrap;}
+.he-t{font-size:14.5px;color:var(--muted);line-height:1.65;white-space:pre-wrap;word-wrap:break-word;}
+.he-pix{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:2px;}
 .he-pixfig{margin:0;}
-.he-pixfig img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;display:block;}
-.he-pixfig figcaption{font-size:9px;color:var(--muted);text-align:center;margin-top:2px;line-height:1.2;}
+.he-pixfig img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;display:block;}
 
 /* ── Photo manager overlay ── */
 #pmo{
@@ -523,6 +522,35 @@ body{
 #pb{left:18px;font-size:18px;}
 #mb.on{color:var(--gold);background:rgba(240,215,154,.14);border-color:var(--gold-dim);}
 #pb:active{color:var(--text);}
+
+/* ── Main-screen Past Entries button (above the carousel) ── */
+#peb{
+  position:relative;z-index:3;
+  margin:20px auto 0;
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 30px;border-radius:16px;
+  border:1.5px solid var(--gold-dim);
+  background:rgba(240,215,154,.12);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  color:var(--gold);font-family:Georgia,serif;font-size:17px;font-style:italic;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+  box-shadow:0 6px 20px rgba(0,0,0,.3);
+  transition:background .2s,transform .1s;
+}
+#peb:active{background:rgba(240,215,154,.22);transform:scale(.97);}
+
+/* ── Jump-to-latest button (Past Entries) ── */
+#hjb{
+  position:absolute;right:18px;bottom:calc(20px + env(safe-area-inset-bottom,0));
+  width:48px;height:48px;border-radius:50%;
+  border:1.5px solid var(--gold-dim);background:rgba(38,38,78,.94);
+  color:var(--gold);font-size:22px;cursor:pointer;z-index:5;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 6px 18px rgba(0,0,0,.45);
+  opacity:0;pointer-events:none;transform:translateY(10px);
+  transition:opacity .25s,transform .25s;-webkit-tap-highlight-color:transparent;
+}
+#hjb.vis{opacity:1;pointer-events:auto;transform:none;}
 </style>
 </head>
 <body>
@@ -533,6 +561,7 @@ body{
     <div id="date-label"></div>
     <div id="greeting"></div>
     <div id="hint"></div>
+    <button id="peb">📖 Past Entries</button>
   </div>
   <div id="hand"></div>
 </div>
@@ -577,6 +606,7 @@ body{
     <button id="hoc" aria-label="Close">✕</button>
   </div>
   <div id="hl"></div>
+  <button id="hjb" aria-label="Jump to latest">↓</button>
 </div>
 
 <!-- Export / backup overlay -->
@@ -1082,51 +1112,94 @@ document.getElementById('epix-add').addEventListener('click',()=>{
 
 // ─── History ─────────────────────────────────────────────────────────────────
 let historyPixUrls = [];
-async function openHistory(){
-  const dates = allDates();
-  const hl = document.getElementById('hl');
-  historyPixUrls.forEach(u=>URL.revokeObjectURL(u)); historyPixUrls=[];
+function personById(id){
+  return PEOPLE.find(p=>p.id===id) || {id, name:id, initial:'?', color:'#7a7a90', relation:''};
+}
+const PHOTO_BATCH_MS = 5*60*1000;   // photos added within 5 min count as one entry
 
-  if(!dates.length){
-    hl.innerHTML='<p style="color:var(--muted);padding:24px;text-align:center;font-style:italic;">No entries yet — start writing today.</p>';
-    document.getElementById('ho').classList.add('vis');
+// filterPerson (optional): show only that person's entries
+async function openHistory(filterPerson){
+  if(filterPerson && typeof filterPerson!=='string') filterPerson = null;  // guard against event arg
+  const ho=document.getElementById('ho'), hl=document.getElementById('hl');
+  historyPixUrls.forEach(u=>URL.revokeObjectURL(u)); historyPixUrls=[];
+  document.getElementById('hot').textContent = filterPerson ? `${personById(filterPerson).name} · Journal` : 'Journal';
+
+  const allPix = await idbGetAll('ourdays_pix','photos').catch(()=>[]);
+
+  // Build a flat chronological list of entries (a note, or a batch of photos)
+  const items = [];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    const m=k && k.match(/^ourdays_([^_]+)_(\d{4}-\d{2}-\d{2})$/);
+    if(!m) continue;
+    const pid=m[1], date=m[2];
+    if(filterPerson && pid!==filterPerson) continue;
+    loadNotes(pid,date).forEach(n=>{
+      if(n.text && n.text.trim())
+        items.push({type:'note', pid, date, ts:n.ts||Date.parse(date+'T12:00:00'), note:n});
+    });
+  }
+  const byPD={};
+  allPix.forEach(r=>{
+    if(filterPerson && r.person!==filterPerson) return;
+    (byPD[r.person+'|'+r.date] = byPD[r.person+'|'+r.date] || []).push(r);
+  });
+  Object.values(byPD).forEach(arr=>{
+    arr.sort((a,b)=>(a.ts||0)-(b.ts||0));
+    let g=null;
+    arr.forEach(r=>{
+      const ts=r.ts||Date.parse(r.date+'T12:00:00');
+      if(g && ts-g.lastTs<=PHOTO_BATCH_MS){ g.photos.push(r); g.lastTs=ts; }
+      else { g={type:'photos', pid:r.person, date:r.date, ts, lastTs:ts, photos:[r]}; items.push(g); }
+    });
+  });
+
+  if(!items.length){
+    hl.innerHTML=`<p style="color:var(--muted);padding:40px 24px;text-align:center;font-style:italic;">No entries yet${filterPerson?` for ${escapeHtml(personById(filterPerson).name)}`:''} — start writing today.</p>`;
+    ho.classList.add('vis'); updateJumpBtn();
     return;
   }
 
-  const allPix = await idbGetAll('ourdays_pix','photos').catch(()=>[]);
-  const pixFor = (pid,date) => allPix.filter(r=>r.person===pid && r.date===date).sort((a,b)=>a.ts-b.ts);
+  // Group by date (ascending), entries within a date by time (ascending) — newest at the bottom
+  const byDate={};
+  items.forEach(it=>{ (byDate[it.date] = byDate[it.date] || []).push(it); });
+  const dates=Object.keys(byDate).sort();
 
   hl.innerHTML = dates.map(date=>{
-    const entries = PEOPLE.map(p=>({p, notes:loadNotes(p.id,date).filter(n=>n.text&&n.text.trim()), pix:pixFor(p.id,date)}))
-                          .filter(e=>e.notes.length || e.pix.length);
-    if(!entries.length) return '';
-    return `
-      <div class="hd">
-        <div class="hd-date">${fmtFull(date)}</div>
-        ${entries.map(e=>`
-          <div class="he">
-            <div class="he-dot" style="background:${e.p.color}">
-              ${loadPhoto(e.p.id)
-                ? `<img src="${loadPhoto(e.p.id)}" alt="${escapeHtml(e.p.name)}">`
-                : e.p.initial}
-            </div>
-            <div class="he-c">
-              <div class="he-n">${escapeHtml(e.p.name)}</div>
-              ${e.notes.map(n=>`<div class="he-note"><div class="he-time">${fmtTime(n.ts)}${n.edited?' · edited':''}</div><div class="he-t">${escapeHtml(n.text).replace(/\n/g,'<br>')}</div></div>`).join('')}
-              ${e.pix.length?`<div class="he-pix">${e.pix.map(r=>{
-                const u=URL.createObjectURL(r.blob); historyPixUrls.push(u);
-                return `<figure class="he-pixfig"><img src="${u}" alt="day photo"><figcaption>${r.ts?fmtTime(r.ts):''}</figcaption></figure>`;
-              }).join('')}</div>`:''}
-            </div>
-          </div>
-        `).join('')}
-      </div>`;
+    const day = byDate[date].sort((a,b)=>a.ts-b.ts);
+    return `<div class="hd"><div class="hd-date">${fmtFull(date)}</div>${
+      day.map(it=>{
+        const p=personById(it.pid), ph=loadPhoto(it.pid);
+        const av=`<div class="he-dot" style="background:${p.color}">${ph?`<img src="${ph}" alt="${escapeHtml(p.name)}">`:escapeHtml(p.initial)}</div>`;
+        const edited = (it.type==='note' && it.note.edited) ? ' · edited' : '';
+        const content = it.type==='note'
+          ? `<div class="he-t">${escapeHtml(it.note.text).replace(/\n/g,'<br>')}</div>`
+          : `<div class="he-pix">${it.photos.map(r=>{
+              const u=URL.createObjectURL(r.blob); historyPixUrls.push(u);
+              return `<figure class="he-pixfig"><img src="${u}" alt="day photo"></figure>`;
+            }).join('')}</div>`;
+        return `<div class="he">${av}<div class="he-c"><div class="he-head"><span class="he-n">${escapeHtml(p.name)}</span><span class="he-time">${fmtTime(it.ts)}${edited}</span></div>${content}</div></div>`;
+      }).join('')
+    }</div>`;
   }).join('');
 
-  document.getElementById('ho').classList.add('vis');
+  ho.classList.add('vis');
+  // Newest entries are at the bottom — jump there on open
+  requestAnimationFrame(()=>{ hl.scrollTop = hl.scrollHeight; updateJumpBtn(); });
 }
 
-document.getElementById('hib').addEventListener('click', openHistory);
+function updateJumpBtn(){
+  const hl=document.getElementById('hl'), btn=document.getElementById('hjb');
+  const dist = hl.scrollHeight - hl.scrollTop - hl.clientHeight;
+  btn.classList.toggle('vis', dist > 240);
+}
+document.getElementById('hl').addEventListener('scroll', updateJumpBtn);
+document.getElementById('hjb').addEventListener('click', ()=>{
+  document.getElementById('hl').scrollTo({top:document.getElementById('hl').scrollHeight, behavior:'smooth'});
+});
+
+document.getElementById('peb').addEventListener('click', ()=>openHistory());
+document.getElementById('hib').addEventListener('click', ()=>{ if(activePerson) openHistory(activePerson.id); });
 document.getElementById('hoc').addEventListener('click',()=>{
   document.getElementById('ho').classList.remove('vis');
   historyPixUrls.forEach(u=>URL.revokeObjectURL(u)); historyPixUrls=[];

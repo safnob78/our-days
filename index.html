@@ -649,24 +649,37 @@ body{
   box-shadow:inset 0 0 30px rgba(240,215,154,.04);
   opacity:.5;transition:opacity .3s;
 }
-/* zone outline = a milky-galaxy "livewire" current while a card is dragged */
+/* zone outline = crackling, sparking galactic electricity while a card is dragged */
 @property --lzang{ syntax:'<angle>'; initial-value:0deg; inherits:false; }
+@property --lzang2{ syntax:'<angle>'; initial-value:0deg; inherits:false; }
 #lz.hot{ opacity:1; border-color:transparent; }
-#lz.hot::before{
+#lz.hot::before,#lz.hot::after{
   content:'';position:absolute;inset:-3px;border-radius:22px;padding:3px;
-  background:conic-gradient(from var(--lzang),
-    transparent 0deg, rgba(243,233,207,.95) 16deg, rgba(240,215,154,.6) 38deg, rgba(200,182,255,.4) 54deg, transparent 80deg,
-    transparent 176deg, rgba(243,233,207,.9) 198deg, rgba(240,215,154,.55) 220deg, rgba(184,200,255,.35) 238deg, transparent 270deg,
-    transparent 360deg);
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
   -webkit-mask-composite:xor;
   mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
   mask-composite:exclude;
-  filter:drop-shadow(0 0 5px rgba(240,215,154,.55));
-  animation:lzspin 2.3s linear infinite, lzsizzle .1s steps(2,end) infinite;
+  filter:drop-shadow(0 0 4px rgba(243,233,207,.75));
+}
+#lz.hot::before{
+  background:conic-gradient(from var(--lzang),
+    transparent 0deg,#f3e9cf 5deg,transparent 12deg, transparent 42deg,#f0d79a 47deg,transparent 53deg,
+    transparent 96deg,#fff 101deg,transparent 107deg, transparent 152deg,#c8b8f0 157deg,transparent 163deg,
+    transparent 212deg,#f3e9cf 217deg,transparent 223deg, transparent 272deg,#f0d79a 277deg,transparent 283deg,
+    transparent 322deg,#fff 327deg,transparent 333deg, transparent 360deg);
+  animation:lzspin 1.5s steps(15) infinite, lzcrackle .07s steps(2,end) infinite;
+}
+#lz.hot::after{
+  background:conic-gradient(from var(--lzang2),
+    transparent 0deg,#c8b8f0 7deg,transparent 15deg, transparent 72deg,#f3e9cf 77deg,transparent 84deg,
+    transparent 142deg,#f0d79a 147deg,transparent 154deg, transparent 222deg,#fff 227deg,transparent 234deg,
+    transparent 302deg,#f3e9cf 307deg,transparent 314deg, transparent 360deg);
+  animation:lzspin2 1.05s steps(11) infinite reverse, lzcrackle .05s steps(2,end) infinite reverse;
+  opacity:.85;
 }
 @keyframes lzspin{ to{ --lzang:360deg; } }
-@keyframes lzsizzle{ 0%{opacity:.7} 50%{opacity:1} 100%{opacity:.82} }
+@keyframes lzspin2{ to{ --lzang2:360deg; } }
+@keyframes lzcrackle{ 0%{opacity:.5} 50%{opacity:1} 100%{opacity:.7} }
 /* milky splash on a valid drop */
 @keyframes zonesplash{
   0%{ box-shadow:0 0 0 0 rgba(243,233,207,.6),inset 0 0 0 rgba(243,233,207,0); border-color:var(--cream); }
@@ -674,7 +687,19 @@ body{
   100%{ box-shadow:0 0 0 0 rgba(243,233,207,0),inset 0 0 0 rgba(243,233,207,0); border-color:var(--gold-dim); }
 }
 #lz.splash{ opacity:1; animation:zonesplash .65s ease-out; }
-#lz.splash::before{ display:none; }
+#lz.splash::before,#lz.splash::after{ display:none; }
+/* milky white-gold galactic burst on a valid drop */
+#splash{
+  position:fixed;z-index:120;pointer-events:none;display:none;border-radius:50%;
+  background:radial-gradient(circle, rgba(255,253,247,.95) 0%, rgba(243,233,207,.72) 28%, rgba(240,215,154,.42) 50%, rgba(200,182,255,.22) 72%, transparent 100%);
+  mix-blend-mode:screen;
+}
+@keyframes splashburst{
+  0%{ transform:scale(.25); opacity:0; }
+  18%{ opacity:.95; }
+  100%{ transform:scale(1.55); opacity:0; }
+}
+#splash.go{ display:block; animation:splashburst .62s ease-out forwards; }
 
 /* 3-D tumbling wobble while a card is held in the air (multi-axis, arrhythmic) */
 @keyframes cardwobble{
@@ -687,7 +712,7 @@ body{
   88% { transform:perspective(720px) rotateX(6deg)   rotateY(8deg)   rotateZ(-4deg) scale(1.04); }
   100%{ transform:perspective(720px) rotateX(9deg)   rotateY(-11deg) rotateZ(-3deg) scale(1.03); }
 }
-#fcard.wobble{ animation:cardwobble 2.6s cubic-bezier(.45,.05,.55,.95) infinite; }
+#fcard.wobble{ animation:cardwobble 4.2s cubic-bezier(.45,.05,.55,.95) infinite; }
 
 /* ── Floating enlarged/dragged card ── */
 #fcard{
@@ -921,6 +946,7 @@ img.zoomable{cursor:zoom-in;}
 
 <!-- Card landing zone (drop pad) + floating enlarged/dragged card -->
 <div id="lz"></div>
+<div id="splash"></div>
 <div id="fcard"></div>
 <button id="fcx" aria-label="Back to cards">✕</button>
 
@@ -1279,6 +1305,8 @@ function closeEditor(){
   document.getElementById('eo').classList.remove('vis');
   document.getElementById('ec').classList.remove('full');
   document.getElementById('eo').classList.remove('efull');
+  const ecEl=document.getElementById('ec'); ecEl.style.transform=''; ecEl.style.transition='';
+  document.getElementById('eo').style.perspective='';
   document.getElementById('eta').blur();
   editorPixUrls.forEach(u=>URL.revokeObjectURL(u)); editorPixUrls=[];
   editorVoiceUrls.forEach(u=>URL.revokeObjectURL(u)); editorVoiceUrls=[];
@@ -2404,18 +2432,43 @@ function closeFcard(){
   snapBackToCarousel(fc);
   fcardActive=false; fcardPerson=null; fcardMode=null;
 }
-function openNotesSide(person){
+function playSplash(zone){
+  const s=document.getElementById('splash');
+  const size=zone.width*1.7;
+  s.style.width=size+'px'; s.style.height=size+'px';
+  s.style.left=(zone.cx-size/2)+'px'; s.style.top=(zone.cy-size/2)+'px';
+  s.classList.remove('go'); void s.offsetWidth; s.classList.add('go');
+  setTimeout(()=>s.classList.remove('go'), 700);
+}
+// Phase B: notes side flips in, full screen
+function openEditorFlip(person){
+  openEditor(person);
+  const ec=document.getElementById('ec'), eo=document.getElementById('eo');
+  ec.classList.add('full'); eo.classList.add('efull');
+  eo.style.perspective='1600px';
+  ec.style.transition='none';
+  ec.style.transform='rotateY(-90deg)';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    ec.style.transition='transform .36s cubic-bezier(.2,.8,.3,1)';
+    ec.style.transform='rotateY(0deg)';
+  }));
+}
+// card → notes flip: card turns edge-on (size jump hides here), then notes flip in
+function flipToNotes(person){
   const fc=document.getElementById('fcard');
-  fc.classList.remove('wobble'); fc.style.transform='';
-  fc.style.display='none'; fc.style.pointerEvents='';
+  fc.classList.remove('wobble');
   document.getElementById('fcx').style.display='none';
   document.getElementById('lz').classList.remove('hot');
+  fc.style.transition='transform .26s ease-in';
+  fc.style.transformOrigin='center center';
+  fc.style.transform='perspective(1500px) rotateY(90deg) scale(1.18)';
   const srcEl=sourceCardEl(person);
-  if(srcEl) srcEl.style.visibility='';
-  fcardActive=false; fcardPerson=null; fcardMode=null;
-  openEditor(person);
-  document.getElementById('ec').classList.add('full');
-  document.getElementById('eo').classList.add('efull');
+  setTimeout(()=>{
+    fc.style.display='none'; fc.style.transform=''; fc.style.transition=''; fc.style.pointerEvents='';
+    if(srcEl) srcEl.style.visibility='';
+    fcardActive=false; fcardPerson=null; fcardMode=null;
+    openEditorFlip(person);
+  }, 250);
 }
 
 // ── Drag a carousel card up into the zone (pickup) ──
@@ -2447,14 +2500,14 @@ function endPickup(e){
   const cx=e.clientX, cy=e.clientY - pickH*0.22;
   const inZone = cx>=zone.left && cx<=zone.left+zone.width && cy>=zone.top && cy<=zone.top+zone.height;
   if(inZone){
-    lz.classList.add('splash');
+    lz.classList.add('splash'); playSplash(zone);
     setTimeout(()=>lz.classList.remove('splash'), 700);
     const tW=Math.min(innerWidth*0.9, zone.width*1.32), tH=tW*CARD_AR;
     const ease='cubic-bezier(.2,.85,.25,1)';
     fc.style.transition=`left .4s ${ease},top .4s ${ease},width .4s ${ease},height .4s ${ease}`;
     fc.style.left=(zone.cx-tW/2)+'px'; fc.style.top=(zone.cy-tH/2)+'px'; fc.style.width=tW+'px'; fc.style.height=tH+'px';
     const person=fcardPerson;
-    setTimeout(()=>openNotesSide(person), 430);
+    setTimeout(()=>flipToNotes(person), 430);
   } else {
     snapBackToCarousel(fc);
     fcardActive=false; fcardMode=null; fcardPerson=null;
@@ -2482,7 +2535,7 @@ document.getElementById('fcx').addEventListener('click', closeFcard);
     if(y0==null) return;
     const dx=e.clientX-x0, dy=e.clientY-y0; y0=null;
     if(dy>70 && dy>Math.abs(dx)){ closeFcard(); }
-    else if(!moved){ if(fcardPerson) openNotesSide(fcardPerson); }
+    else if(!moved){ if(fcardPerson) flipToNotes(fcardPerson); }
     else { fc.style.transition='transform .2s ease'; fc.style.transform=''; }
   });
 })();

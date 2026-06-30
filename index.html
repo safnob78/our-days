@@ -1102,6 +1102,15 @@ function renderHand(){
   requestAnimationFrame(positionLandingZone);
 }
 
+// Rebuild the fan instantly (no entrance animation) — used when returning to the
+// home screen, which also repaints cards to dodge an iOS rounded-corner glitch.
+function renderHandInstant(){
+  const hand=document.getElementById('hand');
+  hand.classList.add('drag');          // #hand.drag .cw { transition:none }
+  renderHand();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>hand.classList.remove('drag')));
+}
+
 function layout(progress){
   cards.forEach((cw,i)=>{
     const d = i - progress;
@@ -1218,6 +1227,7 @@ function closeEditor(){
   editorVoiceUrls.forEach(u=>URL.revokeObjectURL(u)); editorVoiceUrls=[];
   activePerson = null;
   editingNoteId = null;
+  renderHandInstant();   // fresh fan on return home (also fixes iOS card-corner glitch)
 }
 
 // Today's notes list (timestamped, tap to edit)
@@ -2324,9 +2334,8 @@ function closeFcard(){
   if(src){
     fc.style.transition='left .38s ease,top .38s ease,width .38s ease,height .38s ease';
     fc.style.left=src.left+'px'; fc.style.top=src.top+'px'; fc.style.width=src.width+'px'; fc.style.height=src.height+'px';
-    const sEl=srcEl;
-    setTimeout(()=>{ fc.style.display='none'; if(sEl) sEl.style.visibility=''; }, 380);
-  } else { fc.style.display='none'; if(srcEl) srcEl.style.visibility=''; }
+    setTimeout(()=>{ fc.style.display='none'; renderHandInstant(); }, 380);
+  } else { fc.style.display='none'; renderHandInstant(); }
   fcardActive=false; fcardPerson=null;
 }
 function openNotesSide(person){

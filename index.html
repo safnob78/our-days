@@ -662,15 +662,8 @@ body{
 #hjb.vis{opacity:1;pointer-events:auto;transform:none;}
 
 /* ── Card landing zone (drop pad) ── */
-#lz{
-  position:fixed;z-index:1;pointer-events:none;
-  border:2px solid var(--gold-dim);border-radius:20px;
-  background:transparent;
-  box-shadow:inset 0 0 30px rgba(240,215,154,.04);
-  opacity:.5;transition:opacity .3s;
-}
-/* zone outline: subtle at rest; canvas spark border hides the base outline while live */
-#lz.hot{ opacity:0; }
+/* landing zone is invisible — the drop spot is clear, and stars are the only cue */
+#lz{ position:fixed;z-index:1;pointer-events:none;opacity:0; }
 #lzcanvas{ position:fixed;z-index:1;pointer-events:none;display:none; }
 
 /* milky impact splash: outward-radiating concentric rings + background flash + spray */
@@ -1016,7 +1009,7 @@ const PEOPLE = [
 
 // ─── Storage ─────────────────────────────────────────────────────────────────
 const SK = (id,date) => `ourdays_${id}_${date}`;
-const today = () => new Date().toISOString().split('T')[0];
+const today = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 
 // Notes: each day holds a timestamped list of note objects {id,text,ts,edited}.
 // Older entries were a single plain-text string — migrated on read.
@@ -1506,6 +1499,23 @@ document.getElementById('evid-add').addEventListener('click',()=>{
   });
   inp.click();
 });
+
+// Pause the music while any video plays; resume it once they've all stopped.
+(function(){
+  let paused=false; const active=new Set();
+  function onPlay(v){
+    if(!active.size && MS.playing){ MS.audio.pause(); paused=true; }
+    active.add(v);
+  }
+  function onStop(v){
+    active.delete(v);
+    if(!active.size && paused){ paused=false; if(MS.playing && MS.audio.src) MS.audio.play().catch(()=>{}); }
+  }
+  // media events don't bubble — listen in the capture phase
+  document.addEventListener('play',  e=>{ if(e.target&&e.target.tagName==='VIDEO') onPlay(e.target); }, true);
+  document.addEventListener('pause', e=>{ if(e.target&&e.target.tagName==='VIDEO') onStop(e.target); }, true);
+  document.addEventListener('ended', e=>{ if(e.target&&e.target.tagName==='VIDEO') onStop(e.target); }, true);
+})();
 
 // ─── History ─────────────────────────────────────────────────────────────────
 let historyPixUrls = [];
@@ -2455,19 +2465,20 @@ function positionLandingZone(){
   if(LZFX.on) lzResize();
 }
 
-// canvas: brilliant radiating gold border + a galactic rainbow vortex inside
-const LZFX={ on:false, raf:0, canvas:null, ctx:null, W:0, H:0, M:52, rw:0, rh:0, rr:20, t:0, fade:0, target:0, vstars:[] };
+// canvas: a full-screen swirling star field, the only drag cue
+const LZFX={ on:false, raf:0, canvas:null, ctx:null, W:0, H:0, t:0, fade:0, target:0, vstars:[] };
 function lzResize(){
-  const r=landingZoneRect(), M=LZFX.M, c=LZFX.canvas;
-  const cw=r.width+2*M, ch=r.height+2*M, dpr=Math.min(devicePixelRatio||1,2);
-  c.style.left=(r.left-M)+'px'; c.style.top=(r.top-M)+'px';
+  const c=LZFX.canvas, dpr=Math.min(devicePixelRatio||1,2);
+  const cw=innerWidth, ch=innerHeight;
+  c.style.left='0px'; c.style.top='0px';
   c.style.width=cw+'px'; c.style.height=ch+'px';
   c.width=Math.round(cw*dpr); c.height=Math.round(ch*dpr);
   LZFX.ctx.setTransform(dpr,0,0,dpr,0,0);
-  LZFX.W=cw; LZFX.H=ch; LZFX.rw=r.width; LZFX.rh=r.height;
-  const R=Math.min(r.width,r.height)/2*0.98;
+  LZFX.W=cw; LZFX.H=ch;
+  const R=Math.hypot(cw,ch)/2;
+  const n=Math.round(Math.max(90, cw*ch/4500));
   LZFX.vstars=[];
-  for(let i=0;i<40;i++) LZFX.vstars.push({a:Math.random()*6.283, r:Math.sqrt(Math.random())*R, sz:Math.random()*1.6+.4, tw:1+Math.random()*3, ph:Math.random()*6.283, spin:.45+Math.random()*1.0});
+  for(let i=0;i<n;i++) LZFX.vstars.push({a:Math.random()*6.283, r:Math.sqrt(Math.random())*R, sz:Math.random()*1.6+.4, tw:1+Math.random()*3, ph:Math.random()*6.283, spin:.35+Math.random()*.9});
 }
 function roundRectPath(ctx,x,y,w,h,r){
   ctx.beginPath(); ctx.moveTo(x+r,y);
@@ -2510,16 +2521,15 @@ function drawTwirl(ang){
 }
 function lzDraw(){
   if(!LZFX.on) return;
-  const ctx=LZFX.ctx, M=LZFX.M, w=LZFX.rw, h=LZFX.rh, cx=M+w/2, cy=M+h/2;
+  const ctx=LZFX.ctx, cx=LZFX.W/2, cy=LZFX.H/2;
   LZFX.t+=0.016;
   // warm up / cool off symmetrically toward the target (1 = live, 0 = off)
   if(LZFX.fade<LZFX.target) LZFX.fade=Math.min(LZFX.target,LZFX.fade+0.05);
   else if(LZFX.fade>LZFX.target) LZFX.fade=Math.max(LZFX.target,LZFX.fade-0.05);
-  const f=LZFX.fade, ang=LZFX.t*0.5, R=Math.hypot(w,h)/2+16;
+  const f=LZFX.fade, ang=LZFX.t*0.5;
   ctx.clearRect(0,0,LZFX.W,LZFX.H);
   ctx.save();
-  roundRectPath(ctx,M,M,w,h,LZFX.rr); ctx.clip();
-  // subtle swirling stars as the only cue
+  // full-screen swirling stars — the only drag cue
   ctx.shadowColor='rgba(240,215,154,.6)'; ctx.shadowBlur=4;
   for(const st of LZFX.vstars){
     const tw=(0.18+0.68*Math.max(0,Math.sin(LZFX.t*st.tw+st.ph)))*f;

@@ -649,18 +649,24 @@ body{
   box-shadow:inset 0 0 30px rgba(240,215,154,.04);
   opacity:.5;transition:opacity .3s;
 }
-/* zone outline: subtle at rest; wild electric SVG border while a card is dragged */
-#lz.hot{ opacity:1; box-shadow:0 0 18px rgba(240,215,154,.16),inset 0 0 22px rgba(240,215,154,.06); }
-#lzsvg{ position:fixed;z-index:1;pointer-events:none;display:none;overflow:visible; }
+/* zone outline: subtle at rest; canvas spark border hides the base outline while live */
+#lz.hot{ opacity:0; }
+#lzcanvas{ position:fixed;z-index:1;pointer-events:none;display:none; }
 
-/* milky impact splash (rim ripple + crown of droplets) on a valid drop */
+/* milky impact splash: outward-radiating concentric rings + background flash + spray */
 #splash{ position:fixed;inset:0;z-index:120;pointer-events:none;display:none;overflow:visible; }
 #splash.go{ display:block; }
+.sp-flash{
+  position:absolute;border-radius:20px;mix-blend-mode:screen;opacity:0;
+  background:radial-gradient(circle, rgba(255,253,247,.9) 0%, rgba(243,233,207,.55) 42%, rgba(240,215,154,.25) 70%, transparent 100%);
+  animation:spFlash .6s ease-out forwards;
+}
+@keyframes spFlash{ 0%{opacity:0;transform:scale(.55)} 22%{opacity:1;transform:scale(1)} 100%{opacity:0;transform:scale(1.1)} }
 .sp-ring{
   position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;
   border:3px solid rgba(243,233,207,.9);
   box-shadow:0 0 18px rgba(243,233,207,.5),inset 0 0 10px rgba(240,215,154,.4);
-  animation:spRing .55s ease-out forwards; mix-blend-mode:screen;
+  animation:spRing .6s ease-out forwards; mix-blend-mode:screen;
 }
 @keyframes spRing{
   0%{ transform:scale(.15); opacity:0; border-width:6px; }
@@ -671,13 +677,12 @@ body{
   position:absolute;margin:-5px 0 0 -5px;border-radius:50%;
   background:radial-gradient(circle at 35% 30%, #fffdf7, #f0d79a 68%, rgba(200,182,255,.65));
   box-shadow:0 0 7px rgba(243,233,207,.6); mix-blend-mode:screen;
-  animation:spDrop .72s cubic-bezier(.28,.6,.55,1) forwards;
+  animation:spDrop .66s cubic-bezier(.2,.7,.5,1) forwards;
 }
 @keyframes spDrop{
   0%{ transform:translate(0,0) scale(.5); opacity:0; }
-  14%{ opacity:1; }
-  46%{ transform:translate(calc(var(--dx)*.62), var(--up)) scale(1); opacity:1; }
-  100%{ transform:translate(var(--dx), var(--down)) scale(.4); opacity:0; }
+  16%{ opacity:1; }
+  100%{ transform:translate(var(--dx), var(--dy)) scale(.35); opacity:0; }
 }
 
 /* 3-D tumbling wobble while a card is held in the air (multi-axis, arrhythmic) */
@@ -925,23 +930,7 @@ img.zoomable{cursor:zoom-in;}
 
 <!-- Card landing zone (drop pad) + floating enlarged/dragged card -->
 <div id="lz"></div>
-<svg id="lzsvg" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <defs>
-    <linearGradient id="lzgrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#f3e9cf"/><stop offset=".4" stop-color="#f0d79a"/>
-      <stop offset=".7" stop-color="#c8b8f0"/><stop offset="1" stop-color="#f3e9cf"/>
-    </linearGradient>
-    <filter id="lzfilter" x="-40%" y="-40%" width="180%" height="180%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.018 0.05" numOctaves="2" seed="2" result="n">
-        <animate attributeName="seed" dur="0.42s" repeatCount="indefinite" calcMode="discrete" values="1;7;3;11;5;9;2;13;4;8"/>
-      </feTurbulence>
-      <feDisplacementMap in="SourceGraphic" in2="n" scale="18" xChannelSelector="R" yChannelSelector="G" result="disp"/>
-      <feGaussianBlur in="disp" stdDeviation="1.5" result="glow"/>
-      <feMerge><feMergeNode in="glow"/><feMergeNode in="disp"/></feMerge>
-    </filter>
-  </defs>
-  <rect id="lzrect" fill="none" stroke="url(#lzgrad)" stroke-width="2.4" filter="url(#lzfilter)"/>
-</svg>
+<canvas id="lzcanvas"></canvas>
 <div id="splash"></div>
 <div id="fcard"></div>
 <button id="fcx" aria-label="Back to cards">✕</button>
@@ -2367,17 +2356,79 @@ function positionLandingZone(){
   const r=landingZoneRect();
   lz.style.left=r.left+'px'; lz.style.top=r.top+'px';
   lz.style.width=r.width+'px'; lz.style.height=r.height+'px';
-  const M=34, svg=document.getElementById('lzsvg'), rect=document.getElementById('lzrect');
-  if(svg && rect){
-    svg.style.left=(r.left-M)+'px'; svg.style.top=(r.top-M)+'px';
-    svg.style.width=(r.width+2*M)+'px'; svg.style.height=(r.height+2*M)+'px';
-    rect.setAttribute('x',M); rect.setAttribute('y',M);
-    rect.setAttribute('width',r.width); rect.setAttribute('height',r.height); rect.setAttribute('rx',20);
+  if(LZFX.on) lzResize();
+}
+
+// canvas electric border: jittering outline that throws off tendrils + flying sparks
+const LZFX={ on:false, raf:0, canvas:null, ctx:null, W:0, H:0, M:38, rw:0, rh:0, rr:20, sparks:[] };
+function lzResize(){
+  const r=landingZoneRect(), M=LZFX.M, c=LZFX.canvas;
+  const cw=r.width+2*M, ch=r.height+2*M, dpr=Math.min(devicePixelRatio||1,2);
+  c.style.left=(r.left-M)+'px'; c.style.top=(r.top-M)+'px';
+  c.style.width=cw+'px'; c.style.height=ch+'px';
+  c.width=Math.round(cw*dpr); c.height=Math.round(ch*dpr);
+  LZFX.ctx.setTransform(dpr,0,0,dpr,0,0);
+  LZFX.W=cw; LZFX.H=ch; LZFX.rw=r.width; LZFX.rh=r.height;
+}
+function roundRectPts(x,y,w,h,r,ps,pc){
+  const p=[], push=(a,b)=>p.push([a,b]);
+  for(let i=0;i<ps;i++) push(x+r+(w-2*r)*i/ps, y);
+  for(let i=0;i<pc;i++){ const a=-Math.PI/2+(Math.PI/2)*i/pc; push(x+w-r+Math.cos(a)*r, y+r+Math.sin(a)*r); }
+  for(let i=0;i<ps;i++) push(x+w, y+r+(h-2*r)*i/ps);
+  for(let i=0;i<pc;i++){ const a=(Math.PI/2)*i/pc; push(x+w-r+Math.cos(a)*r, y+h-r+Math.sin(a)*r); }
+  for(let i=0;i<ps;i++) push(x+w-r-(w-2*r)*i/ps, y+h);
+  for(let i=0;i<pc;i++){ const a=Math.PI/2+(Math.PI/2)*i/pc; push(x+r+Math.cos(a)*r, y+h-r+Math.sin(a)*r); }
+  for(let i=0;i<ps;i++) push(x, y+h-r-(h-2*r)*i/ps);
+  for(let i=0;i<pc;i++){ const a=Math.PI+(Math.PI/2)*i/pc; push(x+r+Math.cos(a)*r, y+r+Math.sin(a)*r); }
+  return p;
+}
+function lzDraw(){
+  if(!LZFX.on) return;
+  const ctx=LZFX.ctx, M=LZFX.M, w=LZFX.rw, h=LZFX.rh;
+  ctx.clearRect(0,0,LZFX.W,LZFX.H);
+  const base=roundRectPts(M,M,w,h,LZFX.rr,8,5), ccx=M+w/2, ccy=M+h/2, jit=5.5;
+  ctx.beginPath();
+  for(let i=0;i<base.length;i++){
+    const jx=base[i][0]+(Math.random()-.5)*jit*2, jy=base[i][1]+(Math.random()-.5)*jit*2;
+    i?ctx.lineTo(jx,jy):ctx.moveTo(jx,jy);
   }
+  ctx.closePath();
+  ctx.shadowColor='rgba(240,215,154,.9)'; ctx.shadowBlur=7;
+  ctx.strokeStyle='rgba(243,233,207,.85)'; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.shadowBlur=3; ctx.strokeStyle='rgba(255,255,255,.9)'; ctx.lineWidth=.7; ctx.stroke();
+  const nT=(Math.random()<.6?1:0)+(Math.random()<.3?1:0);
+  for(let t=0;t<nT;t++){
+    const b=base[(Math.random()*base.length)|0];
+    let dx=b[0]-ccx, dy=b[1]-ccy; const L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
+    let tx=b[0], ty=b[1];
+    ctx.beginPath(); ctx.moveTo(tx,ty);
+    const seg=3+((Math.random()*3)|0);
+    for(let s=0;s<seg;s++){ tx+=dx*(6+Math.random()*9)+(Math.random()-.5)*12; ty+=dy*(6+Math.random()*9)+(Math.random()-.5)*12; ctx.lineTo(tx,ty); }
+    ctx.shadowBlur=6; ctx.strokeStyle='rgba(243,233,207,.8)'; ctx.lineWidth=1.1; ctx.stroke();
+    if(LZFX.sparks.length<70) LZFX.sparks.push({x:tx,y:ty,vx:dx*1.2+(Math.random()-.5)*1.5,vy:dy*1.2+(Math.random()-.5)*1.5,life:1,c:Math.random()<.28?'200,182,255':'243,233,207'});
+  }
+  ctx.shadowBlur=5;
+  LZFX.sparks=LZFX.sparks.filter(s=>{
+    s.x+=s.vx*2.4; s.y+=s.vy*2.4; s.vy+=0.05; s.vx*=.99; s.life-=0.045;
+    if(s.life<=0) return false;
+    ctx.beginPath(); ctx.arc(s.x,s.y,1.5,0,6.283);
+    ctx.shadowColor='rgba('+s.c+',.9)'; ctx.fillStyle='rgba('+s.c+','+s.life.toFixed(2)+')'; ctx.fill();
+    return true;
+  });
+  LZFX.raf=requestAnimationFrame(lzDraw);
 }
 function setZoneHot(on){
   document.getElementById('lz').classList.toggle('hot',on);
-  document.getElementById('lzsvg').style.display=on?'block':'none';
+  const c=document.getElementById('lzcanvas');
+  if(on){
+    if(!LZFX.canvas){ LZFX.canvas=c; LZFX.ctx=c.getContext('2d'); }
+    c.style.display='block'; LZFX.on=true; LZFX.sparks=[]; lzResize();
+    cancelAnimationFrame(LZFX.raf); LZFX.raf=requestAnimationFrame(lzDraw);
+  } else {
+    LZFX.on=false; cancelAnimationFrame(LZFX.raf);
+    if(LZFX.ctx) LZFX.ctx.clearRect(0,0,LZFX.W,LZFX.H);
+    c.style.display='none';
+  }
 }
 
 let fcardActive=false, fcardPerson=null, fcardMode=null;   // 'enlarged' | 'dragging'
@@ -2443,27 +2494,35 @@ function playSplash(zone){
   const layer=document.getElementById('splash');
   layer.innerHTML='';
   const cx=zone.cx, cy=zone.cy;
-  const ring=document.createElement('div'); ring.className='sp-ring';
-  ring.style.left=cx+'px'; ring.style.top=cy+'px';
-  ring.style.setProperty('--rs', (zone.width*0.92/12).toFixed(1));
-  layer.appendChild(ring);
-  const N=14;
+  // milky background flash filling the zone
+  const flash=document.createElement('div'); flash.className='sp-flash';
+  flash.style.left=zone.left+'px'; flash.style.top=zone.top+'px';
+  flash.style.width=zone.width+'px'; flash.style.height=zone.height+'px';
+  layer.appendChild(flash);
+  // concentric rings radiating OUTWARD from the impact point
+  for(let k=0;k<3;k++){
+    const ring=document.createElement('div'); ring.className='sp-ring';
+    ring.style.left=cx+'px'; ring.style.top=cy+'px';
+    ring.style.setProperty('--rs', (zone.width*(0.7+k*0.3)/12).toFixed(1));
+    ring.style.animationDelay=(k*95)+'ms';
+    layer.appendChild(ring);
+  }
+  // droplet spray radiating out from the rim
+  const N=16, rim=zone.width*0.14;
   for(let i=0;i<N;i++){
-    const a=(i/N)*Math.PI*2 + (Math.random()-0.5)*0.5;
-    const dist=zone.width*(0.34+Math.random()*0.26);
-    const rise=zone.height*(0.24+Math.random()*0.22);
+    const a=(i/N)*Math.PI*2 + (Math.random()-0.5)*0.28;
+    const dist=zone.width*(0.4+Math.random()*0.22);
     const d=document.createElement('div'); d.className='sp-drop';
-    const sz=(6+Math.random()*9);
+    const sz=(5+Math.random()*8);
     d.style.width=sz.toFixed(1)+'px'; d.style.height=sz.toFixed(1)+'px';
-    d.style.left=cx+'px'; d.style.top=cy+'px';
+    d.style.left=(cx+Math.cos(a)*rim).toFixed(1)+'px'; d.style.top=(cy+Math.sin(a)*rim).toFixed(1)+'px';
     d.style.setProperty('--dx', (Math.cos(a)*dist).toFixed(1)+'px');
-    d.style.setProperty('--up', (-rise).toFixed(1)+'px');
-    d.style.setProperty('--down', (Math.abs(Math.sin(a))*dist*0.25 + rise*0.7).toFixed(1)+'px');
-    d.style.animationDelay=(Math.random()*45).toFixed(0)+'ms';
+    d.style.setProperty('--dy', (Math.sin(a)*dist - zone.height*0.06).toFixed(1)+'px');
+    d.style.animationDelay=(Math.random()*35).toFixed(0)+'ms';
     layer.appendChild(d);
   }
   layer.classList.add('go');
-  setTimeout(()=>{ layer.classList.remove('go'); layer.innerHTML=''; }, 950);
+  setTimeout(()=>{ layer.classList.remove('go'); layer.innerHTML=''; }, 1000);
 }
 // Phase B: notes side flips in, full screen
 function openEditorFlip(person){
@@ -2484,16 +2543,20 @@ function flipToNotes(person){
   fc.classList.remove('wobble');
   document.getElementById('fcx').style.display='none';
   setZoneHot(false);
-  fc.style.transition='transform .26s ease-in';
   fc.style.transformOrigin='center center';
-  fc.style.transform='perspective(1500px) rotateY(90deg) scale(1.18)';
+  const ease='cubic-bezier(.3,.05,.4,1)';
+  fc.style.transition=`left .3s ${ease},top .3s ${ease},width .3s ${ease},height .3s ${ease},transform .3s ${ease}`;
+  // the card itself grows to full screen while turning edge-on
+  fc.style.left='0px'; fc.style.top='0px'; fc.style.width=innerWidth+'px'; fc.style.height=innerHeight+'px';
+  fc.style.transform='perspective(1600px) rotateY(90deg)';
   const srcEl=sourceCardEl(person);
   setTimeout(()=>{
     fc.style.display='none'; fc.style.transform=''; fc.style.transition=''; fc.style.pointerEvents='';
+    fc.style.left=''; fc.style.top=''; fc.style.width=''; fc.style.height='';
     if(srcEl) srcEl.style.visibility='';
     fcardActive=false; fcardPerson=null; fcardMode=null;
     openEditorFlip(person);
-  }, 250);
+  }, 290);
 }
 
 // ── Drag a carousel card up into the zone (pickup) ──

@@ -2380,6 +2380,13 @@ function roundRectPath(ctx,x,y,w,h,r){
 }
 const LZ_COLS =['#f0d79a','#f6c2d2','#d8c6f0','#5f87cf','#c2ecd2','#f8d3ad','#c8b8f0','#f0d79a'];
 const LZ_COLS2=['#9173c9','#f3e9cf','#54a877','#dd9355','#d76d92','#3a4a9e','#9173c9'];
+function lzHexRgb(h){ h=h.replace('#',''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+const LZ_RGB=LZ_COLS.map(lzHexRgb);
+function lzColAt(t){
+  t-=Math.floor(t);
+  const n=LZ_RGB.length-1, x=t*n, i=Math.floor(x)%n, fr=x-Math.floor(x), a=LZ_RGB[i], b=LZ_RGB[i+1];
+  return 'rgb('+Math.round(a[0]+(b[0]-a[0])*fr)+','+Math.round(a[1]+(b[1]-a[1])*fr)+','+Math.round(a[2]+(b[2]-a[2])*fr)+')';
+}
 function lzDraw(){
   if(!LZFX.on) return;
   const ctx=LZFX.ctx, M=LZFX.M, w=LZFX.rw, h=LZFX.rh, cx=M+w/2, cy=M+h/2;
@@ -2396,18 +2403,19 @@ function lzDraw(){
     for(let i=0;i<LZ_COLS2.length;i++) cg2.addColorStop(i/(LZ_COLS2.length-1),LZ_COLS2[i]);
     ctx.globalAlpha=0.4*f; ctx.fillStyle=cg2; ctx.fillRect(M,M,w,h);
   } else { ctx.globalAlpha=0.5*f; ctx.fillStyle='#6a4ab0'; ctx.fillRect(M,M,w,h); }
-  // spiral arms (log-ish spiral, rotating) → whirlpool/galaxy structure
-  const arms=3, twist=5.8, armCol=['#fff8e8','#f6c2d2','#c8b8f0'];
-  ctx.lineCap='round';
+  // smooth spiral arms whose colours gradient into one another along the curve
+  const arms=2, twist=6.4;
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.globalAlpha=0.5*f; ctx.lineWidth=Math.max(11,R*0.17);
   for(let k=0;k<arms;k++){
-    const b=ang*1.5 + k*(6.283/arms);
-    ctx.beginPath();
-    for(let tt=0;tt<=1.001;tt+=0.045){
-      const rr=Math.pow(tt,0.82)*R*0.98, th=b+tt*twist;
+    const b=ang*1.4 + k*(6.283/arms);
+    let px0,py0,first=true;
+    for(let tt=0;tt<=1.0001;tt+=0.014){
+      const rr=Math.pow(tt,0.8)*R*0.98, th=b+tt*twist;
       const px=cx+Math.cos(th)*rr, py=cy+Math.sin(th)*rr;
-      tt===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+      if(!first){ ctx.beginPath(); ctx.moveTo(px0,py0); ctx.lineTo(px,py); ctx.strokeStyle=lzColAt(tt+LZFX.t*0.14+k*0.5); ctx.stroke(); }
+      px0=px; py0=py; first=false;
     }
-    ctx.globalAlpha=0.4*f; ctx.strokeStyle=armCol[k%3]; ctx.lineWidth=Math.max(9,R*0.14); ctx.stroke();
   }
   const rg=ctx.createRadialGradient(cx,cy,3,cx,cy,R);
   rg.addColorStop(0,'rgba(255,253,247,'+(0.65*f).toFixed(2)+')');

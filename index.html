@@ -2360,7 +2360,7 @@ function positionLandingZone(){
 }
 
 // canvas: brilliant radiating gold border + a galactic rainbow vortex inside
-const LZFX={ on:false, raf:0, canvas:null, ctx:null, W:0, H:0, M:52, rw:0, rh:0, rr:20, t:0, fade:0, vstars:[] };
+const LZFX={ on:false, raf:0, canvas:null, ctx:null, W:0, H:0, M:52, rw:0, rh:0, rr:20, t:0, fade:0, target:0, vstars:[] };
 function lzResize(){
   const r=landingZoneRect(), M=LZFX.M, c=LZFX.canvas;
   const cw=r.width+2*M, ch=r.height+2*M, dpr=Math.min(devicePixelRatio||1,2);
@@ -2415,14 +2415,17 @@ function drawTwirl(ang){
 function lzDraw(){
   if(!LZFX.on) return;
   const ctx=LZFX.ctx, M=LZFX.M, w=LZFX.rw, h=LZFX.rh, cx=M+w/2, cy=M+h/2;
-  LZFX.t+=0.016; if(LZFX.fade<1) LZFX.fade=Math.min(1,LZFX.fade+0.05);
+  LZFX.t+=0.016;
+  // warm up / cool off symmetrically toward the target (1 = live, 0 = off)
+  if(LZFX.fade<LZFX.target) LZFX.fade=Math.min(LZFX.target,LZFX.fade+0.05);
+  else if(LZFX.fade>LZFX.target) LZFX.fade=Math.max(LZFX.target,LZFX.fade-0.05);
   const f=LZFX.fade, ang=LZFX.t*0.5, R=Math.hypot(w,h)/2+16;
   ctx.clearRect(0,0,LZFX.W,LZFX.H);
   ctx.save();
   roundRectPath(ctx,M,M,w,h,LZFX.rr); ctx.clip();
   ensureTwirlCanvas();
   drawTwirl(ang);
-  ctx.globalAlpha=f; ctx.imageSmoothingEnabled=true;
+  ctx.globalAlpha=f*0.72; ctx.imageSmoothingEnabled=true;   // let the sky show through
   ctx.drawImage(LZFX.oc, M-4, M-4, w+8, h+8);
   // faint galactic sparkle over the swirl
   for(const st of LZFX.vstars){
@@ -2445,6 +2448,13 @@ function lzDraw(){
   ctx.strokeStyle='rgba(245,228,175,'+(0.8*pulse+0.2).toFixed(2)+')'; ctx.lineWidth=3; ctx.stroke();
   ctx.shadowBlur=5; ctx.strokeStyle='rgba(255,251,238,.95)'; ctx.lineWidth=1.2; ctx.stroke();
   ctx.globalAlpha=1; ctx.shadowBlur=0;
+  // fully cooled off → stop and hide
+  if(LZFX.target===0 && LZFX.fade<=0.001){
+    LZFX.on=false; cancelAnimationFrame(LZFX.raf);
+    ctx.clearRect(0,0,LZFX.W,LZFX.H);
+    LZFX.canvas.style.display='none';
+    return;
+  }
   LZFX.raf=requestAnimationFrame(lzDraw);
 }
 function setZoneHot(on){
@@ -2452,12 +2462,10 @@ function setZoneHot(on){
   const c=document.getElementById('lzcanvas');
   if(on){
     if(!LZFX.canvas){ LZFX.canvas=c; LZFX.ctx=c.getContext('2d'); }
-    c.style.display='block'; LZFX.on=true; LZFX.fade=0; LZFX.t=0; lzResize();
-    cancelAnimationFrame(LZFX.raf); LZFX.raf=requestAnimationFrame(lzDraw);
+    c.style.display='block'; LZFX.target=1;
+    if(!LZFX.on){ LZFX.on=true; LZFX.fade=0; LZFX.t=0; lzResize(); cancelAnimationFrame(LZFX.raf); LZFX.raf=requestAnimationFrame(lzDraw); }
   } else {
-    LZFX.on=false; cancelAnimationFrame(LZFX.raf);
-    if(LZFX.ctx) LZFX.ctx.clearRect(0,0,LZFX.W,LZFX.H);
-    c.style.display='none';
+    LZFX.target=0;   // cool off symmetrically; the loop stops itself once faded out
   }
 }
 

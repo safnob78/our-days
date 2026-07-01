@@ -662,6 +662,11 @@ body{
 #hjb.vis{opacity:1;pointer-events:auto;transform:none;}
 
 /* ── Card landing zone (drop pad) ── */
+/* tiny live-sync indicator: dim when offline/local, warm gold when connected */
+#syncdot{ position:fixed;left:calc(env(safe-area-inset-left,0px) + 10px);bottom:calc(env(safe-area-inset-bottom,0px) + 10px);
+  width:8px;height:8px;border-radius:50%;background:#6b6b80;opacity:.35;z-index:130;pointer-events:none;transition:background .4s,opacity .4s,box-shadow .4s; }
+#syncdot.on{ background:#e8c86a;opacity:.9;box-shadow:0 0 8px rgba(232,200,106,.8); }
+
 /* landing zone is invisible — the drop spot is clear, and stars are the only cue */
 #lz{ position:fixed;z-index:1;pointer-events:none;opacity:0; }
 #lzcanvas{ position:fixed;z-index:1;pointer-events:none;display:none; }
@@ -965,6 +970,7 @@ img.zoomable{cursor:zoom-in;}
 
 <button id="mb" aria-label="Music">♩</button>
 <button id="pb" aria-label="Add photos">📷</button>
+<div id="syncdot" title="Sync"></div>
 
 <script>
 // ─── People ─────────────────────────────────────────────────────────────────
@@ -1015,8 +1021,8 @@ function loadNotes(id, date){
     const v = JSON.parse(raw);
     if(Array.isArray(v)) return v;
   }catch(_){}
-  // legacy single-string note
-  return [{ id:'legacy', text:raw, ts:Date.parse(date+'T12:00:00'), edited:null }];
+  // legacy single-string note — give it a stable unique id so it syncs cleanly
+  return [{ id:'lg_'+id+'_'+date, text:raw, ts:Date.parse(date+'T12:00:00'), edited:null }];
 }
 function saveNotes(id, date, arr){
   const keep = (arr||[]).filter(n=>n.text && n.text.trim());
@@ -1025,24 +1031,31 @@ function saveNotes(id, date, arr){
 }
 function addNote(id, date, text){
   const arr = loadNotes(id,date);
-  arr.push({ id:noteUid(), text:text, ts:Date.now(), edited:null });
+  const n = { id:noteUid(), text:text, ts:Date.now(), edited:null };
+  arr.push(n);
   saveNotes(id,date,arr);
+  Sync.emitRecord({ id:n.id, kind:'note', person:id, date, ts:n.ts, edited:null, text:n.text, updatedAt:n.ts });
 }
 function updateNote(id, date, noteId, text){
   const arr = loadNotes(id,date);
   const n = arr.find(x=>x.id===noteId);
-  if(n){ n.text=text; n.edited=Date.now(); saveNotes(id,date,arr); }
+  if(n){ n.text=text; n.edited=Date.now(); saveNotes(id,date,arr);
+    Sync.emitRecord({ id:noteId, kind:'note', person:id, date, ts:n.ts, edited:n.edited, text:n.text, updatedAt:n.edited }); }
 }
 function deleteNote(id, date, noteId){
   saveNotes(id, date, loadNotes(id,date).filter(x=>x.id!==noteId));
+  Sync.emitRecord({ id:noteId, kind:'note', person:id, date, deleted:true, updatedAt:Date.now() });
 }
 function hasNotes(id, date){ return loadNotes(id,date).some(n=>n.text && n.text.trim()); }
 
 function loadPhoto(id){ return localStorage.getItem(`ourdays_photo_${id}`) || ''; }
 function loadPhotoTs(id){ const t=localStorage.getItem(`ourdays_photo_${id}_ts`); return t?+t:null; }
 function savePhoto(id, dataUrl){
+  const ts=Date.now();
   localStorage.setItem(`ourdays_photo_${id}`, dataUrl);
-  localStorage.setItem(`ourdays_photo_${id}_ts`, Date.now());
+  localStorage.setItem(`ourdays_photo_${id}_ts`, ts);
+  try{ Sync.emitMedia({ id:'card_'+id, kind:'cardphoto', person:id, date:'', ts, mime:'image/jpeg', updatedAt:ts },
+    new Blob([dataURLToBytes(dataUrl)],{type:'image/jpeg'})); }catch(_){}
 }
 
 function allDates(){
@@ -1093,6 +1106,150 @@ async function idbDel(name,store,id){
     t.onsuccess=()=>res(); t.onerror=()=>rej(t.error);
   });
 }
+
+// ─── Live sync (self-hosted laptop server, optional) ──────────────────────────
+// Additive: when a server is reachable (the app is served from it), every write
+// is mirrored up and other devices' writes stream down live. When it's not
+// reachable, everything still works device-local and queues in an outbox.
+const Sync = (function(){
+  const API='';                                   // same origin (served by the laptop)
+  const LS_SEQ='ourdays_sync_seq', LS_PUSHED='ourdays_sync_pushed';
+  let es=null, online=false, flushing=false, flushTimer=null, uiTimer=null;
+  const sent=new Map();                            // id -> updatedAt we ourselves sent (echo guard)
+
+  const lastSeq=()=>parseInt(localStorage.getItem(LS_SEQ)||'0',10);
+  const setSeq=n=>{ if(n>lastSeq()) localStorage.setItem(LS_SEQ,String(n)); };
+
+  async function fetchMedia(id){
+    const r=await fetch(API+'/api/media/'+encodeURIComponent(id));
+    if(!r.ok) throw new Error('media '+r.status);
+    return await r.blob();
+  }
+
+  // ---- Outbox (survives offline / reloads) ----
+  async function queue(op){
+    op.oid=op.oid||(Date.now().toString(36)+'_'+Math.random().toString(36).slice(2));
+    await idbPut('ourdays_outbox','ops',op).catch(()=>{});
+    scheduleFlush();
+  }
+  function scheduleFlush(){ clearTimeout(flushTimer); flushTimer=setTimeout(flush,300); }
+  async function flush(){
+    if(flushing) return; flushing=true;
+    try{
+      const ops=(await idbGetAll('ourdays_outbox','ops').catch(()=>[])).sort((a,b)=>a.oid<b.oid?-1:1);
+      for(const op of ops){
+        try{
+          let r;
+          if(op.type==='media'){
+            r=await fetch(API+'/api/media/'+encodeURIComponent(op.rec.id),
+              {method:'PUT', headers:{'X-Meta':JSON.stringify(op.rec)}, body:op.blob});
+          } else {
+            r=await fetch(API+'/api/record',
+              {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(op.rec)});
+          }
+          if(!r.ok) throw new Error('http '+r.status);
+          const j=await r.json().catch(()=>({})); if(j.seq) setSeq(j.seq);
+          await idbDel('ourdays_outbox','ops',op.oid).catch(()=>{});
+          online=true; setOnline(true);
+        }catch(e){ online=false; setOnline(false); break; }   // offline: retry later
+      }
+    } finally { flushing=false; }
+  }
+
+  // ---- Emit: the app calls these at each user write ----
+  function emitRecord(rec){ rec.updatedAt=rec.updatedAt||Date.now(); sent.set(rec.id,rec.updatedAt); queue({type:'record',rec}); }
+  function emitMedia(rec,blob){ rec.updatedAt=rec.updatedAt||Date.now(); rec.hasBlob=true; sent.set(rec.id,rec.updatedAt); queue({type:'media',rec,blob}); }
+
+  // ---- Apply incoming remote records to local stores (no re-emit) ----
+  async function applyByKind(rec){
+    if(rec.kind==='note'){
+      const arr=loadNotes(rec.person,rec.date), i=arr.findIndex(n=>n.id===rec.id);
+      if(rec.deleted){ if(i>=0){ arr.splice(i,1); saveNotes(rec.person,rec.date,arr); } }
+      else{ const n={id:rec.id,text:rec.text,ts:rec.ts,edited:rec.edited||null};
+        if(i>=0) arr[i]=n; else arr.push(n);
+        arr.sort((a,b)=>(a.ts||0)-(b.ts||0)); saveNotes(rec.person,rec.date,arr); }
+    } else if(rec.kind==='cardphoto'){
+      if(rec.deleted){ localStorage.removeItem('ourdays_photo_'+rec.person); localStorage.removeItem('ourdays_photo_'+rec.person+'_ts'); }
+      else{ const durl=await blobToDataURL(await fetchMedia(rec.id));
+        if(durl){ localStorage.setItem('ourdays_photo_'+rec.person,durl); if(rec.ts) localStorage.setItem('ourdays_photo_'+rec.person+'_ts',rec.ts); } }
+    } else if(rec.kind==='photo'){
+      if(rec.deleted) await idbDel('ourdays_pix','photos',rec.id).catch(()=>{});
+      else await idbPut('ourdays_pix','photos',{id:rec.id,person:rec.person,date:rec.date,ts:rec.ts,blob:await fetchMedia(rec.id)});
+    } else if(rec.kind==='video'){
+      if(rec.deleted) await idbDel('ourdays_vid','videos',rec.id).catch(()=>{});
+      else await idbPut('ourdays_vid','videos',{id:rec.id,person:rec.person,date:rec.date,ts:rec.ts,blob:await fetchMedia(rec.id),mime:rec.mime||''});
+    } else if(rec.kind==='voice'){
+      if(rec.deleted){ await idbDel('ourdays_voice','voice',rec.id).catch(()=>{}); if(rec.person) await refreshVoiceFlag(rec.person,rec.date); }
+      else{ let blob=null; if(rec.hasBlob){ try{ blob=await fetchMedia(rec.id); }catch(_){} }
+        await idbPut('ourdays_voice','voice',{id:rec.id,person:rec.person,date:rec.date,ts:rec.ts,blob,mime:rec.mime||'',transcript:rec.transcript||''});
+        setVoiceFlag(rec.person,rec.date,true); }
+    }
+  }
+  async function apply(rec){
+    setSeq(rec.seq||0);
+    const mine=sent.get(rec.id);                    // skip echoes of our own recent writes
+    if(mine!==undefined && mine>=(rec.updatedAt||0)){ refreshUISoon(); return; }
+    try{ await applyByKind(rec); }catch(e){ console.warn('[sync] apply failed',e); }
+    refreshUISoon();
+  }
+  function refreshUISoon(){
+    clearTimeout(uiTimer);
+    uiTimer=setTimeout(()=>{
+      try{ renderHand(); }catch(_){}
+      if(typeof activePerson!=='undefined' && activePerson){
+        try{ renderEditorNotes(); }catch(_){}
+        try{ renderEditorPix(); }catch(_){}
+        try{ renderEditorVid(); }catch(_){}
+        try{ renderEditorVoices(); }catch(_){}
+      }
+      const ho=document.getElementById('ho');
+      if(ho && ho.classList.contains('vis')){ try{ openHistory(currentHistoryFilter); }catch(_){} }
+    },200);
+  }
+
+  // ---- Push everything already on this device up to the server, once ----
+  async function pushAllLocal(){
+    if(localStorage.getItem(LS_PUSHED)==='1') return;
+    try{
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i), m=k&&k.match(/^ourdays_([^_]+)_(\d{4}-\d{2}-\d{2})$/);
+        if(!m) continue;
+        const pid=m[1], date=m[2];
+        loadNotes(pid,date).forEach(n=>{ if(n.text&&n.text.trim())
+          emitRecord({id:n.id,kind:'note',person:pid,date,ts:n.ts,edited:n.edited||null,text:n.text,updatedAt:n.edited||n.ts}); });
+      }
+      for(const p of PEOPLE){ const durl=loadPhoto(p.id); if(durl){ try{
+        emitMedia({id:'card_'+p.id,kind:'cardphoto',person:p.id,date:'',ts:loadPhotoTs(p.id)||Date.now(),mime:'image/jpeg'},
+          new Blob([dataURLToBytes(durl)],{type:'image/jpeg'})); }catch(_){} } }
+      (await idbGetAll('ourdays_pix','photos').catch(()=>[])).forEach(r=>
+        emitMedia({id:r.id,kind:'photo',person:r.person,date:r.date,ts:r.ts,mime:r.blob.type||'image/jpeg'}, r.blob));
+      (await idbGetAll('ourdays_vid','videos').catch(()=>[])).forEach(r=>
+        emitMedia({id:r.id,kind:'video',person:r.person,date:r.date,ts:r.ts,mime:r.mime||r.blob.type||'video/mp4'}, r.blob));
+      (await idbGetAll('ourdays_voice','voice').catch(()=>[])).forEach(r=>{
+        if(r.blob) emitMedia({id:r.id,kind:'voice',person:r.person,date:r.date,ts:r.ts,mime:r.mime||'',transcript:r.transcript||''}, r.blob);
+        else emitRecord({id:r.id,kind:'voice',person:r.person,date:r.date,ts:r.ts,transcript:r.transcript||'',hasBlob:false}); });
+      localStorage.setItem(LS_PUSHED,'1');
+    }catch(e){ console.warn('[sync] pushAllLocal',e); }
+  }
+
+  // ---- Live connection (EventSource auto-reconnects; resumes via Last-Event-ID) ----
+  function connect(){
+    // Only attempt when a server is actually there (skip on GitHub Pages etc.)
+    fetch(API+'/api/health').then(r=>r.ok?r.json():Promise.reject()).then(()=>{
+      pushAllLocal();
+      if(es) return;
+      es=new EventSource(API+'/api/events?since='+lastSeq());
+      es.addEventListener('record', ev=>{ try{ apply(JSON.parse(ev.data)); }catch(_){} });
+      es.addEventListener('synced', ()=>{ online=true; setOnline(true); flush(); });
+      es.onopen=()=>{ online=true; setOnline(true); flush(); };
+      es.onerror=()=>{ online=false; setOnline(false); };
+    }).catch(()=>{ online=false; setOnline(false); });
+  }
+  function setOnline(on){ const el=document.getElementById('syncdot'); if(el) el.classList.toggle('on',!!on); }
+
+  window.addEventListener('online', scheduleFlush);
+  return { connect, emitRecord, emitMedia, flush, isOnline:()=>online };
+})();
 
 // ─── Date / greeting ─────────────────────────────────────────────────────────
 function fmtFull(iso){
@@ -1435,6 +1592,7 @@ async function renderEditorPix(){
 }
 async function removeDayPhoto(id){
   await idbDel('ourdays_pix','photos',id).catch(()=>{});
+  Sync.emitRecord({id,kind:'photo',deleted:true,updatedAt:Date.now()});
   renderEditorPix();
 }
 document.getElementById('epix-add').addEventListener('click',()=>{
@@ -1448,7 +1606,9 @@ document.getElementById('epix-add').addEventListener('click',()=>{
       const blob=await fileToResizedBlob(f,1100,0.82);
       if(!blob) continue;
       const id=`${person}_${date}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      await idbPut('ourdays_pix','photos',{id,person,date,blob,ts:Date.now()}).catch(()=>{});
+      const ts=Date.now();
+      await idbPut('ourdays_pix','photos',{id,person,date,blob,ts}).catch(()=>{});
+      Sync.emitMedia({id,kind:'photo',person,date,ts,mime:blob.type||'image/jpeg'}, blob);
     }
     renderEditorPix();
     document.body.removeChild(inp);
@@ -1474,6 +1634,7 @@ async function renderEditorVid(){
 }
 async function removeDayVideo(id){
   await idbDel('ourdays_vid','videos',id).catch(()=>{});
+  Sync.emitRecord({id,kind:'video',deleted:true,updatedAt:Date.now()});
   renderEditorVid();
 }
 document.getElementById('evid-add').addEventListener('click',()=>{
@@ -1486,7 +1647,9 @@ document.getElementById('evid-add').addEventListener('click',()=>{
     for(const f of inp.files){
       if(!f.type || f.type.indexOf('video')!==0) continue;
       const id=`${person}_${date}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      await idbPut('ourdays_vid','videos',{id,person,date,blob:f,mime:f.type,ts:Date.now()}).catch(()=>{});
+      const ts=Date.now();
+      await idbPut('ourdays_vid','videos',{id,person,date,blob:f,mime:f.type,ts}).catch(()=>{});
+      Sync.emitMedia({id,kind:'video',person,date,ts,mime:f.type||'video/mp4'}, f);
     }
     renderEditorVid();
     document.body.removeChild(inp);
@@ -1519,8 +1682,10 @@ function personById(id){
 const PHOTO_BATCH_MS = 5*60*1000;   // photos added within 5 min count as one entry
 
 // filterPerson (optional): show only that person's entries
+let currentHistoryFilter = null;
 async function openHistory(filterPerson){
   if(filterPerson && typeof filterPerson!=='string') filterPerson = null;  // guard against event arg
+  currentHistoryFilter = filterPerson || null;
   const ho=document.getElementById('ho'), hl=document.getElementById('hl');
   historyPixUrls.forEach(u=>URL.revokeObjectURL(u)); historyPixUrls=[];
   document.getElementById('hot').textContent = filterPerson ? `${personById(filterPerson).name} · Journal` : 'Journal';
@@ -1729,6 +1894,7 @@ async function pastePhoto(id){
 function removePhoto(id){
   localStorage.removeItem(`ourdays_photo_${id}`);
   localStorage.removeItem(`ourdays_photo_${id}_ts`);
+  Sync.emitRecord({ id:'card_'+id, kind:'cardphoto', person:id, deleted:true, updatedAt:Date.now() });
   afterPhotoChange();
 }
 
@@ -2401,6 +2567,8 @@ $('vr-save').addEventListener('click', async ()=>{
   const rec={ id:Date.now()+'_'+Math.random().toString(36).slice(2), person, date, ts:Date.now(),
     blob: haveAudio?VR.blob:null, mime: haveAudio?VR.mime:'', transcript: haveTrans?trans:'' };
   await idbPut('ourdays_voice','voice',rec).catch(()=>{});
+  if(haveAudio) Sync.emitMedia({id:rec.id,kind:'voice',person,date,ts:rec.ts,mime:rec.mime,transcript:rec.transcript}, rec.blob);
+  else Sync.emitRecord({id:rec.id,kind:'voice',person,date,ts:rec.ts,transcript:rec.transcript,hasBlob:false});
   setVoiceFlag(person,date,true);
   closeVoicePanel(); renderEditorVoices(); renderHand();
 });
@@ -2422,7 +2590,9 @@ async function renderEditorVoices(){
 }
 async function deleteVoice(id){
   if(!confirm('Delete this voice note?')) return;
+  const person=activePerson?activePerson.id:'', date=today();
   await idbDel('ourdays_voice','voice',id).catch(()=>{});
+  Sync.emitRecord({id,kind:'voice',person,date,deleted:true,updatedAt:Date.now()});
   if(activePerson) await refreshVoiceFlag(activePerson.id, today());
   renderEditorVoices(); renderHand();
 }
@@ -2747,6 +2917,8 @@ function init(){
   initStars();
   renderHand();
   loadMusic();
+  Sync.connect();
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
   [300,800].forEach(t=>setTimeout(positionLandingZone,t));
   // rebuild voice "done" flags from storage, then refresh the dots
   idbGetAll('ourdays_voice','voice').then(list=>{

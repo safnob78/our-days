@@ -2706,7 +2706,6 @@ function endPickup(e){
   const cx=e.clientX, cy=e.clientY - pickH*0.22;
   const inZone = cx>=zone.left && cx<=zone.left+zone.width && cy>=zone.top && cy<=zone.top+zone.height;
   if(inZone){
-    playSplash(zone);
     flipToNotes(fcardPerson);   // flip immediately from the release point → full screen
   } else {
     snapBackToCarousel(fc);

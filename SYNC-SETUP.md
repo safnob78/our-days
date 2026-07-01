@@ -76,6 +76,27 @@ OURDAYS_TOKEN="some-long-shared-secret" ./start-server.sh
 ```
 (If you use this, tell me and I'll wire the phones to send it.)
 
+## Run as an auto-start service (systemd)
+
+Instead of `start-server.sh`, the server can run as a background service that
+starts on boot and restarts on failure. The unit is `ourdays.service` in this
+folder:
+
+```bash
+sudo install -m 0644 ourdays.service /etc/systemd/system/ourdays.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now ourdays
+systemctl status ourdays          # check it's active
+```
+
+(Adjust `User=` and the paths in the unit if the folder isn't
+`/home/ekimelbon/familyJournal`.)
+
+Keep-awake note: a non-root service can't hold a sleep-inhibitor lock, so set the
+laptop to not sleep while plugged in via your desktop's power settings (KDE:
+System Settings → Power Management → "On AC Power" → never sleep), or leave that
+to the always-on Pi.
+
 ## Moving to a Raspberry Pi later
 
 Copy this whole folder (including `server-data/`) to the Pi, install Node and

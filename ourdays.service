@@ -1,0 +1,16 @@
+[Unit]
+Description=Our Days family journal sync server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ekimelbon
+WorkingDirectory=/home/ekimelbon/familyJournal
+Environment=PORT=8787
+ExecStart=/usr/bin/node /home/ekimelbon/familyJournal/server.js
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
